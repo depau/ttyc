@@ -15,3 +15,6 @@
 # vendor/
 
 .idea/
+
+cmd/ttyc/ttyc
+cmd/wistty/wistty
