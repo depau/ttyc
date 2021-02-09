@@ -35,10 +35,10 @@ type SttyDTO struct {
 }
 
 type sttyInDTO struct {
-	Baudrate uint
-	Databits uint8
-	Stopbits uint8
-	Parity   *int
+	Baudrate uint  `json:"baudrate"`
+	Databits uint8 `json:"bits"`
+	Stopbits uint8 `json:"stop"`
+	Parity   *int  `json:"parity"`
 }
 
 func GetBaseUrl(scheme *string, host *string, port int, user *string, pass *string) url.URL {
