@@ -113,7 +113,8 @@ func main() {
 	tokenHttpUrl.Path = "/token"
 	sttyHttpUrl := ttyc.GetBaseUrl(&httpScheme, &config.Host, config.Port, &config.User, &config.Pass)
 	sttyHttpUrl.Path = "/stty"
-	wsUrl := ttyc.GetBaseUrl(&wsScheme, &config.Host, config.Port, &config.User, &config.Pass)
+	// Auth is performed using token, and the WebSocket library doesn't support auth data in the URL anyway
+	wsUrl := ttyc.GetBaseUrl(&wsScheme, &config.Host, config.Port, nil, nil)
 	wsUrl.Path = "/ws"
 
 	token, implementation, err := ttyc.Handshake(&tokenHttpUrl)
