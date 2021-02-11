@@ -122,12 +122,13 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) doShutdown(err error) {
-	if err != nil {
-		c.error <- err
-	}
 	if !c.isShutdown {
 		close(c.shutdown)
 		c.isShutdown = true
+
+		if err != nil {
+			c.error <- err
+		}
 	}
 }
 
