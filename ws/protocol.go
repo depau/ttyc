@@ -158,6 +158,9 @@ func (c *Client) chanLoop() {
 		//println("SELECT chanLoop")
 		select {
 		case data := <-c.fromWs:
+			if len(data) <= 0 {
+				continue
+			}
 			if data[0] == MsgOutput {
 				c.output <- data[1:]
 			} //else if data[0] == MsgSetWindowTitle {
@@ -165,6 +168,9 @@ func (c *Client) chanLoop() {
 			//}
 			// Ignore MsgSetPreferences since we're not Xterm.js
 		case data := <-c.toWs:
+			if len(data) == 0 {
+				continue
+			}
 			err := c.WsClient.WriteMessage(websocket.BinaryMessage, data)
 			if err != nil {
 				ttyc.Trace()
@@ -172,6 +178,9 @@ func (c *Client) chanLoop() {
 				return
 			}
 		case data := <-c.input:
+			if len(data) == 0 {
+				continue
+			}
 			// I could avoid duplicating the code but I'd rather avoid the additional copy, since writing to the
 			// WebSocket is this goroutine's job anyway.
 			err := c.WsClient.WriteMessage(websocket.BinaryMessage, append([]byte{MsgInput}, data...))
