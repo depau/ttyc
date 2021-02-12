@@ -36,14 +36,16 @@ type stdfdsHandler struct {
 	client           *ws.Client
 	console          *console.Console
 	ttyConf          *ttyc.SttyDTO
+	server           string
 	expectingCommand bool
 }
 
-func NewStdFdsHandler(client *ws.Client, ttyConf *ttyc.SttyDTO) (tty TtyHandler, err error) {
+func NewStdFdsHandler(client *ws.Client, ttyConf *ttyc.SttyDTO, server string) (tty TtyHandler, err error) {
 	tty = &stdfdsHandler{
 		client:           client,
 		console:          nil,
 		ttyConf:          ttyConf,
+		server:           server,
 		expectingCommand: false,
 	}
 	return
@@ -108,7 +110,11 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 	case ConfigChar:
 		println("")
 		ttyc.TtycPrintf("Configuration:\n")
-		ttyc.TtycPrintf(" Remote server: %s\n", s.client.WsClient.RemoteAddr().String())
+		additionalServerInfo := ""
+		if s.server != "" {
+			additionalServerInfo = fmt.Sprintf(" (%s)", s.server)
+		}
+		ttyc.TtycPrintf(" Remote server: %s%s\n", s.client.WsClient.RemoteAddr().String(), additionalServerInfo)
 		if s.ttyConf != nil {
 			ttyc.TtycPrintf(" Baudrate: %d\n", *s.ttyConf.Baudrate)
 			ttyc.TtycPrintf(" Databits: %d\n", *s.ttyConf.Databits)

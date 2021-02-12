@@ -52,7 +52,7 @@ func GetBaseUrl(scheme *string, host *string, port int, user *string, pass *stri
 	return ret
 }
 
-func Handshake(url *url.URL) (token string, impl Implementation, err error) {
+func Handshake(url *url.URL) (token string, impl Implementation, server string, err error) {
 	var resp *http.Response
 	var body []byte
 
@@ -63,8 +63,10 @@ func Handshake(url *url.URL) (token string, impl Implementation, err error) {
 	defer resp.Body.Close()
 
 	impl = ImplementationTtyd
-	if server := resp.Header.Get("Server"); server != "" {
-		if strings.Contains(strings.ToLower(server), "wi-se") {
+	server = ""
+	if srv := resp.Header.Get("Server"); srv != "" {
+		server = srv
+		if strings.Contains(strings.ToLower(srv), "wi-se") {
 			impl = ImplementationWiSe
 		}
 	}

@@ -93,11 +93,11 @@ func stty(config *Config, sttyUrl *url.URL) error {
 	return nil
 }
 
-func doHandshakeAndSetTerminal(tokenUrl *url.URL, sttyHttpUrl *url.URL, config *Config) (token string, ttyConf *ttyc.SttyDTO, err error) {
-	token, implementation, err := ttyc.Handshake(tokenUrl)
+func doHandshakeAndSetTerminal(tokenUrl *url.URL, sttyHttpUrl *url.URL, config *Config) (token string, ttyConf *ttyc.SttyDTO, server string, err error) {
+	token, implementation, server, err := ttyc.Handshake(tokenUrl)
 	if err != nil {
 		err = fmt.Errorf("handshake failed (unable to connect or wrong user/pass): %v\n", err)
-		return "", nil, err
+		return "", nil, "", err
 	}
 
 	ttyConf = nil
@@ -157,7 +157,7 @@ func main() {
 	wsUrl := ttyc.GetBaseUrl(&wsScheme, &config.Host, config.Port, nil, nil)
 	wsUrl.Path = "/ws"
 
-	token, ttyConf, err := doHandshakeAndSetTerminal(&tokenHttpUrl, &sttyHttpUrl, &config)
+	token, ttyConf, server, err := doHandshakeAndSetTerminal(&tokenHttpUrl, &sttyHttpUrl, &config)
 	if err != nil {
 		ttyc.TtycAngryPrintf("%v\n", err)
 		os.Exit(1)
@@ -176,7 +176,7 @@ func main() {
 
 	var handler handlers.TtyHandler
 	if config.Tty == "" {
-		handler, err = handlers.NewStdFdsHandler(client, ttyConf)
+		handler, err = handlers.NewStdFdsHandler(client, ttyConf, server)
 		if err != nil {
 			ttyc.TtycAngryPrintf("unable to launch console handler: %v\n", err)
 			os.Exit(1)
@@ -219,7 +219,7 @@ func main() {
 			}
 			reconnect = nextBackoff(reconnect, &config)
 
-			token, _, err := doHandshakeAndSetTerminal(&tokenHttpUrl, &sttyHttpUrl, &config)
+			token, _, _, err := doHandshakeAndSetTerminal(&tokenHttpUrl, &sttyHttpUrl, &config)
 			if err != nil {
 				ttyc.TtycAngryPrintf("unable to perform authentication: %v\n", err)
 				continue
