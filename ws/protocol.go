@@ -3,6 +3,7 @@ package ws
 import "C"
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/Depau/ttyc"
 	"github.com/gorilla/websocket"
 	"net/http"
@@ -45,6 +46,7 @@ type Client struct {
 	winTitle chan []byte
 	output   chan []byte
 	input    chan []byte
+	pong     chan interface{}
 	error    chan error
 
 	toWs       chan []byte
@@ -88,6 +90,7 @@ func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
 		winTitle:   make(chan []byte),
 		output:     make(chan []byte),
 		input:      make(chan []byte),
+		pong:       make(chan interface{}),
 		error:      make(chan error),
 		toWs:       make(chan []byte),
 		fromWs:     make(chan []byte),
@@ -195,8 +198,43 @@ func (c *Client) chanLoop() {
 	}
 }
 
-func (c *Client) Run() {
+func (c *Client) watchdog(interval int) {
+	pingDuration := time.Duration(interval) * time.Second
+	timeoutDuration := time.Duration(interval+3) * time.Second
+	nextPing := time.Now().Add(pingDuration)
+	// Give some extra time for the first timeout
+	nextTimeout := time.Now().Add(timeoutDuration + pingDuration)
+
+	for !c.closed && !c.isShutdown {
+		select {
+		case <-time.After(nextPing.Sub(time.Now())):
+			if err := c.WsClient.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+				ttyc.Trace()
+				c.doShutdown(err)
+				return
+			}
+			nextPing = time.Now().Add(pingDuration)
+		case <-time.After(nextTimeout.Sub(time.Now())):
+			ttyc.Trace()
+			c.doShutdown(fmt.Errorf("server is not responding, closing"))
+			return
+		case <-c.pong:
+			nextTimeout = time.Now().Add(timeoutDuration)
+		case <-c.shutdown:
+			return
+		}
+	}
+}
+
+func (c *Client) Run(watchdog int) {
 	go c.readLoop()
+	if watchdog > 0 {
+		c.WsClient.SetPongHandler(func(_ string) error {
+			c.pong <- true
+			return nil
+		})
+		go c.watchdog(watchdog)
+	}
 	c.chanLoop()
 }
 
