@@ -3,6 +3,7 @@ package ws
 import "C"
 import (
 	"encoding/json"
+	"github.com/Depau/ttyc"
 	"github.com/gorilla/websocket"
 	"net/http"
 	"net/url"
@@ -68,6 +69,7 @@ func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
 	}
 	wsClient, resp, err := dialer.Dial(wsUrl.String(), nil)
 	if err != nil {
+		ttyc.Trace()
 		return
 	}
 
@@ -76,6 +78,7 @@ func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
 	}
 	message, _ := json.Marshal(authDTO)
 	if err = wsClient.WriteMessage(websocket.BinaryMessage, message); err != nil {
+		ttyc.Trace()
 		return
 	}
 
@@ -115,6 +118,7 @@ func (c *Client) Close() error {
 	close(c.fromWs)
 
 	if err := c.WsClient.Close(); err != nil {
+		ttyc.Trace()
 		return err
 	}
 
@@ -138,6 +142,7 @@ func (c *Client) readLoop() {
 		msgType, data, err := c.WsClient.ReadMessage()
 		//println("Unblocked readLoop")
 		if err != nil {
+			ttyc.Trace()
 			c.doShutdown(err)
 			return
 		}
@@ -162,6 +167,7 @@ func (c *Client) chanLoop() {
 		case data := <-c.toWs:
 			err := c.WsClient.WriteMessage(websocket.BinaryMessage, data)
 			if err != nil {
+				ttyc.Trace()
 				c.doShutdown(err)
 				return
 			}
@@ -170,6 +176,7 @@ func (c *Client) chanLoop() {
 			// WebSocket is this goroutine's job anyway.
 			err := c.WsClient.WriteMessage(websocket.BinaryMessage, append([]byte{MsgInput}, data...))
 			if err != nil {
+				ttyc.Trace()
 				c.doShutdown(err)
 				return
 			}

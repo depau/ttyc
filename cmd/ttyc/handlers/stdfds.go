@@ -103,6 +103,7 @@ func (s *stdfdsHandler) handleStdin(closeChan <-chan interface{}, inChan <-chan 
 func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte {
 	switch command {
 	case QuitChar:
+		println("")
 		errChan <- fmt.Errorf("quitting")
 	case ConfigChar:
 		println("")
@@ -141,11 +142,13 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 	current := console.Current()
 	s.console = &current
 	if err := current.SetRaw(); err != nil {
+		ttyc.Trace()
 		errChan <- err
 		return
 	}
 	winSize, err := current.Size()
 	if err != nil {
+		ttyc.Trace()
 		errChan <- err
 		return
 	}
@@ -171,6 +174,7 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 		case <-winch:
 			//println("SELECTED stdfds Run winch")
 			if winSize, err := current.Size(); err != nil {
+				ttyc.Trace()
 				errChan <- err
 				return
 			} else {
@@ -183,6 +187,7 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 func (s *stdfdsHandler) Close() error {
 	if s.console != nil {
 		if err := (*s.console).Reset(); err != nil {
+			ttyc.Trace()
 			return err
 		}
 		s.console = nil

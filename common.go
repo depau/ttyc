@@ -57,6 +57,7 @@ func Handshake(url *url.URL) (token string, impl Implementation, err error) {
 	var body []byte
 
 	if resp, err = http.Get(url.String()); err != nil {
+		Trace()
 		return
 	}
 	defer resp.Body.Close()
@@ -69,10 +70,12 @@ func Handshake(url *url.URL) (token string, impl Implementation, err error) {
 	}
 
 	if body, err = ioutil.ReadAll(resp.Body); err != nil {
+		Trace()
 		return
 	}
 	dto := TokenDTO{}
 	if err = json.Unmarshal(body, &dto); err != nil {
+		Trace()
 		return
 	}
 	token = dto.Token
@@ -82,15 +85,18 @@ func Handshake(url *url.URL) (token string, impl Implementation, err error) {
 func GetStty(url *url.URL) (stty SttyDTO, err error) {
 	resp, err := http.Get(url.String())
 	if err != nil {
+		Trace()
 		return
 	}
 	buf, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		Trace()
 		return
 	}
 	sttyIn := sttyInDTO{}
 	err = json.Unmarshal(buf, &sttyIn)
 	if err != nil {
+		Trace()
 		return
 	}
 
@@ -141,6 +147,7 @@ func Stty(url *url.URL, dto *SttyDTO) error {
 
 	resp, err := http.Post(url.String(), "application/json", bytes.NewBuffer([]byte(sb.String())))
 	if err != nil {
+		Trace()
 		return err
 	}
 	if resp.StatusCode != 200 {

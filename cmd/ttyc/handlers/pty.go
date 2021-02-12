@@ -21,6 +21,7 @@ func NewPtyHandler(client *ws.Client, linkTo string) (tty TtyHandler, err error)
 		if stat.Mode()&os.ModeSymlink != 0 {
 			err = os.Remove(linkTo)
 			if err != nil {
+				ttyc.Trace()
 				err = fmt.Errorf("tty filename exists and it can't be removed: %v", err)
 				return nil, err
 			}
@@ -32,6 +33,7 @@ func NewPtyHandler(client *ws.Client, linkTo string) (tty TtyHandler, err error)
 
 	pty, slavePath, err := console.NewPty()
 	if err != nil {
+		ttyc.Trace()
 		return nil, err
 	}
 	if err = os.Symlink(slavePath, linkTo); err != nil {

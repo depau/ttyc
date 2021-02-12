@@ -80,6 +80,7 @@ func stty(config *Config, sttyUrl *url.URL) error {
 
 	err := ttyc.Stty(sttyUrl, &dto)
 	if err != nil {
+		ttyc.Trace()
 		return err
 	}
 	return nil
