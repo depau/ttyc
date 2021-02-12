@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/Depau/ttyc"
 	"github.com/gorilla/websocket"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -52,18 +53,51 @@ type Client struct {
 	toWs       chan []byte
 	fromWs     chan []byte
 	shutdown   chan interface{}
+	closeChan  chan interface{}
 	isShutdown bool
 	closed     bool
 }
 
 type TtyClientOps interface {
+	io.Closer
+
+	Redial(wsUrl *url.URL, token *string) error
 	Run()
 	ResizeTerminal(cols int, rows int)
 	Pause()
 	Resume()
+	SoftClose() error
 }
 
 func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
+	client = &Client{
+		winTitle:   make(chan []byte),
+		output:     make(chan []byte),
+		input:      make(chan []byte),
+		pong:       make(chan interface{}),
+		error:      make(chan error),
+		toWs:       make(chan []byte),
+		fromWs:     make(chan []byte),
+		closeChan:  make(chan interface{}),
+		isShutdown: true,
+		closed:     false,
+	}
+	if err := client.Redial(wsUrl, token); err != nil {
+		return nil, err
+	}
+	client.CloseChan = client.closeChan
+	client.WinTitle = client.winTitle
+	client.Output = client.output
+	client.Input = client.input
+	client.Error = client.error
+	return
+}
+
+func (c *Client) Redial(wsUrl *url.URL, token *string) error {
+	if c.closed {
+		return fmt.Errorf("not allowed to redial on closed client")
+	}
+
 	dialer := websocket.Dialer{
 		Subprotocols:     []string{"tty"},
 		Proxy:            http.ProxyFromEnvironment,
@@ -72,38 +106,33 @@ func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
 	wsClient, resp, err := dialer.Dial(wsUrl.String(), nil)
 	if err != nil {
 		ttyc.Trace()
-		return
+		return err
 	}
-
 	authDTO := AuthDTO{
 		AuthToken: *token,
 	}
 	message, _ := json.Marshal(authDTO)
 	if err = wsClient.WriteMessage(websocket.BinaryMessage, message); err != nil {
 		ttyc.Trace()
-		return
+		return err
 	}
 
-	client = &Client{
-		WsClient:   wsClient,
-		HttpResp:   resp,
-		winTitle:   make(chan []byte),
-		output:     make(chan []byte),
-		input:      make(chan []byte),
-		pong:       make(chan interface{}),
-		error:      make(chan error),
-		toWs:       make(chan []byte),
-		fromWs:     make(chan []byte),
-		shutdown:   make(chan interface{}),
-		isShutdown: false,
-		closed:     false,
+	c.WsClient = wsClient
+	c.HttpResp = resp
+	c.shutdown = make(chan interface{})
+	c.isShutdown = false
+	return nil
+}
+
+func (c *Client) SoftClose() error {
+	if !c.isShutdown {
+		return fmt.Errorf("can only soft-close in order to redial if the client is already shut down")
 	}
-	client.WinTitle = client.winTitle
-	client.Output = client.output
-	client.Input = client.input
-	client.Error = client.error
-	client.CloseChan = client.shutdown
-	return
+	if err := c.WsClient.Close(); err != nil {
+		ttyc.Trace()
+		return err
+	}
+	return nil
 }
 
 func (c *Client) Close() error {
@@ -113,6 +142,7 @@ func (c *Client) Close() error {
 	}
 	c.closed = true
 
+	close(c.closeChan)
 	close(c.winTitle)
 	close(c.output)
 	close(c.input)
@@ -120,11 +150,10 @@ func (c *Client) Close() error {
 	close(c.toWs)
 	close(c.fromWs)
 
-	if err := c.WsClient.Close(); err != nil {
+	if err := c.SoftClose(); err != nil {
 		ttyc.Trace()
 		return err
 	}
-
 	return nil
 }
 
@@ -192,6 +221,7 @@ func (c *Client) chanLoop() {
 				c.doShutdown(err)
 				return
 			}
+		case <-c.closeChan:
 		case <-c.shutdown:
 		}
 		//println("SELECTED chanLoop")
@@ -220,6 +250,7 @@ func (c *Client) watchdog(interval int) {
 			return
 		case <-c.pong:
 			nextTimeout = time.Now().Add(timeoutDuration)
+		case <-c.closeChan:
 		case <-c.shutdown:
 			return
 		}
