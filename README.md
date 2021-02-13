@@ -42,8 +42,9 @@ ttyc --host localhost --port 7681
   -w, --watchdog[=10]       WebSocket ping interval in seconds, 0 to disable, default 10.
   -r, --reconnect[=3]       Reconnection interval in seconds, -1 to disable, default 3.
       --backoff[=linear]    Backoff type, none, linear, exponential, defaults to linear
-      --backoff-value[=2]   For linear backoff, increase reconnect interval by this amount of seconds after each
-                            iteration. For exponential backoff, multiply reconnect interval by this amount. Default 2
+      --backoff-value[=2]   For linear backoff, increase reconnect interval by this amount of seconds
+                            after each iteration. For exponential backoff, multiply reconnect interval
+                            by this amount. Default 2,
   -u, --user                Username for authentication
   -k, --pass                Password for authentication
   -T, --tty                 Do not launch terminal, create terminal device at given location (i.e. /tmp/ttyd)
