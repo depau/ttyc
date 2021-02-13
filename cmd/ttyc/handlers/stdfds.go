@@ -7,6 +7,7 @@ import (
 	"github.com/Depau/ttyc/utils"
 	"github.com/Depau/ttyc/ws"
 	"github.com/containerd/console"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -35,17 +36,19 @@ var cmdsHelp = map[byte]string{
 type stdfdsHandler struct {
 	client           *ws.Client
 	console          *console.Console
-	ttyConf          *ttyc.SttyDTO
+	implementation   ttyc.Implementation
+	sttyUrl          *url.URL
 	server           string
 	expectingCommand bool
 }
 
-func NewStdFdsHandler(client *ws.Client, ttyConf *ttyc.SttyDTO, server string) (tty TtyHandler, err error) {
+func NewStdFdsHandler(client *ws.Client, implementation ttyc.Implementation, sttyURL *url.URL, server string) (tty TtyHandler, err error) {
 	tty = &stdfdsHandler{
 		client:           client,
-		console:          nil,
-		ttyConf:          ttyConf,
+		implementation:   implementation,
+		sttyUrl:          sttyURL,
 		server:           server,
+		console:          nil,
 		expectingCommand: false,
 	}
 	return
@@ -115,15 +118,20 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 			additionalServerInfo = fmt.Sprintf(" (%s)", s.server)
 		}
 		ttyc.TtycPrintf(" Remote server: %s%s\n", s.client.WsClient.RemoteAddr().String(), additionalServerInfo)
-		if s.ttyConf != nil {
-			ttyc.TtycPrintf(" Baudrate: %d\n", *s.ttyConf.Baudrate)
-			ttyc.TtycPrintf(" Databits: %d\n", *s.ttyConf.Databits)
-			ttyc.TtycPrintf(" Flow: soft\n")
-			ttyc.TtycPrintf(" Stopbits: %d\n", *s.ttyConf.Stopbits)
-			if s.ttyConf.Parity == nil {
-				ttyc.TtycPrintf(" Parity: none\n")
+		if s.implementation == ttyc.ImplementationWiSe {
+			ttyConf, err := ttyc.GetStty(s.sttyUrl)
+			if err == nil {
+				ttyc.TtycPrintf(" Baudrate: %d\n", *ttyConf.Baudrate)
+				ttyc.TtycPrintf(" Databits: %d\n", *ttyConf.Databits)
+				ttyc.TtycPrintf(" Flow: soft\n")
+				ttyc.TtycPrintf(" Stopbits: %d\n", *ttyConf.Stopbits)
+				if ttyConf.Parity == nil {
+					ttyc.TtycPrintf(" Parity: none\n")
+				} else {
+					ttyc.TtycPrintf(" Parity: %s\n", *ttyConf.Parity)
+				}
 			} else {
-				ttyc.TtycPrintf(" Parity: %s\n", *s.ttyConf.Parity)
+				ttyc.TtycPrintf("Failed to retrieve remote terminal configuration: %v\n", err)
 			}
 		}
 	case ClearChar:

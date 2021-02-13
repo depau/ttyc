@@ -85,7 +85,10 @@ func Handshake(url *url.URL) (token string, impl Implementation, server string, 
 }
 
 func GetStty(url *url.URL) (stty SttyDTO, err error) {
-	resp, err := http.Get(url.String())
+	httpClient := http.Client{
+		Timeout: 3 * time.Second,
+	}
+	resp, err := httpClient.Get(url.String())
 	if err != nil {
 		Trace()
 		return
