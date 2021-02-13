@@ -5,7 +5,7 @@ anything else that uses a compatible protocol.
 
 Features:
 
-- Built-in terminal with a user interface compatible to that of [tio](https://github.com/tio/tio)
+- Built-in terminal with a user interface similar to that of [tio](https://github.com/tio/tio)
 - Can expose the remote terminal as a pseudo-terminal, which you can connect to with any TTY program (screen, minicom,
   etc.)
 - Supports configuring remote UART parameters for Wi-Se
