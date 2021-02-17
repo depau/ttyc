@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -29,7 +30,7 @@ func CopyReaderToChan(closeChan <-chan interface{}, fd io.Reader, outChan chan<-
 		//println("Unblocked CopyReaderToChan")
 
 		if err != nil {
-			errChan <- err
+			errChan <- fmt.Errorf("tty error (usually terminal closed), shutting down: %v", err)
 			return
 		}
 		outChan <- buf[0:bRead]
