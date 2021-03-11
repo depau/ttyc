@@ -292,7 +292,7 @@ func (c *Client) chanLoop() {
 
 func (c *Client) watchdog(interval int) {
 	pingDuration := time.Duration(interval) * time.Second
-	timeoutDuration := time.Duration(interval+3) * time.Second
+	timeoutDuration := time.Duration(interval+1) * time.Second
 	nextPing := time.Now().Add(pingDuration)
 	// Give some extra time for the first timeout
 	nextTimeout := time.Now().Add(timeoutDuration + pingDuration)
