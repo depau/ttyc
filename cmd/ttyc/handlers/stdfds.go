@@ -141,7 +141,7 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 	case DetectBaudChar:
 		println("")
 		if s.implementation == ttyc.ImplementationWiSe {
-			ttyc.TtycPrintf("Requesting baud rate detection\n")
+			ttyc.TtycPrintf("Requesting baud rate detection (it may take up to 10 seconds)\n")
 			s.client.RequestBaudrateDetection()
 		} else {
 			ttyc.TtycAngryPrintf("Baud rate detection is only available for Wi-Se")
@@ -197,12 +197,18 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 			}
 		case title := <-s.client.WinTitle:
 			ttyc.TtycPrintf("Title: %s\n", title)
-		case baud := <-s.client.DetectedBaudrate:
-			if baud <= 0 {
+		case baudResult := <-s.client.DetectedBaudrate:
+			approx := baudResult[0]
+			measured := baudResult[1]
+			if approx <= 0 {
 				ttyc.TtycAngryPrintf("Baudrate detection was not successful (detection only works while input is received)\n")
 				break
 			}
-			ttyc.TtycPrintf("Detected baudrate: %d bps\n", baud)
+			if measured > 0 {
+				ttyc.TtycPrintf("Detected baudrate: likely %d bps (measured %d bps)\n", approx, measured)
+			} else {
+				ttyc.TtycPrintf("Detected baudrate: likely %d bps\n", approx)
+			}
 		}
 	}
 }

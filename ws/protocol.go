@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -48,12 +49,12 @@ type Client struct {
 	WinTitle         <-chan []byte
 	Output           <-chan []byte
 	Input            chan<- []byte
-	DetectedBaudrate <-chan int64
+	DetectedBaudrate <-chan [2]int64
 	Error            <-chan error
 	CloseChan        <-chan interface{}
 
 	winTitle           chan []byte
-	detectedBaudrate   chan int64
+	detectedBaudrate   chan [2]int64
 	output             chan []byte
 	input              chan []byte
 	flowControl        sync.Mutex
@@ -86,7 +87,7 @@ func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
 		winTitle:           make(chan []byte),
 		output:             make(chan []byte),
 		input:              make(chan []byte),
-		detectedBaudrate:   make(chan int64),
+		detectedBaudrate:   make(chan [2]int64),
 		flowControlEngaged: false,
 		pong:               make(chan interface{}),
 		error:              make(chan error),
@@ -247,12 +248,32 @@ func (c *Client) chanLoop() {
 						break EmptyBaudChanLoop
 					}
 				}
-				i, err := strconv.ParseInt(string(data[1:]), 10, 64)
-				if err != nil {
-					ttyc.TtycAngryPrintf("unable to parse detected baudrate: %v\n", err)
-					break
+				dataStr := string(data[1:])
+				var result [2]int64
+				if strings.Contains(dataStr, ",") {
+					split := strings.SplitN(dataStr, ",", 2)
+					if len(split) != 2 {
+						ttyc.TtycAngryPrintf("Received invalid detected baudrate: %s\n", dataStr)
+						break
+					}
+					for index, item := range split {
+						i, err := strconv.ParseInt(item, 10, 64)
+						if err != nil {
+							ttyc.TtycAngryPrintf("Unable to parse detected baudrate: %v\n", err)
+							break
+						}
+						result[index] = i
+					}
+				} else {
+					i, err := strconv.ParseInt(string(data[1:]), 10, 64)
+					if err != nil {
+						ttyc.TtycAngryPrintf("Unable to parse detected baudrate: %v\n", err)
+						break
+					}
+					result[0] = i
+					result[1] = 0
 				}
-				c.detectedBaudrate <- i
+				c.detectedBaudrate <- result
 			}
 			if data[0] == MsgOutput {
 			}

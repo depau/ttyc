@@ -61,12 +61,18 @@ func (p *ptyHandler) Run(errChan chan<- error) {
 			return
 		case title := <-p.client.WinTitle:
 			ttyc.TtycPrintf("Title: %s\n", title)
-		case baud := <-p.client.DetectedBaudrate:
-			if baud < 0 {
-				ttyc.TtycAngryPrintf("Baudrate detection was not successful\n")
+		case baudResult := <-p.client.DetectedBaudrate:
+			approx := baudResult[0]
+			measured := baudResult[1]
+			if approx <= 0 {
+				ttyc.TtycAngryPrintf("Baudrate detection was not successful (detection only works while input is received)\n")
 				break
 			}
-			ttyc.TtycPrintf("Detected baudrate: %d\n", baud)
+			if measured > 0 {
+				ttyc.TtycPrintf("Detected baudrate: likely %d bps (measured rate: %d bps)\n", approx, measured)
+			} else {
+				ttyc.TtycPrintf("Detected baudrate: likely %d bps\n", approx)
+			}
 		}
 	}
 }
