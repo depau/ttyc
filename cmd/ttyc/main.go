@@ -202,31 +202,31 @@ func main() {
 			return
 		case fatalError = <-client.Error:
 			println()
-			ttyc.TtycAngryPrintf("server disconnected: %v\n", fatalError)
+			ttyc.TtycAngryPrintf("Server disconnected: %v\n", fatalError)
 			if err := client.SoftClose(); err != nil {
-				ttyc.TtycAngryPrintf("error while cleaning up the WebSocket: %v\n", err)
+				ttyc.TtycAngryPrintf("Error while cleaning up the WebSocket: %v\n", err)
 			}
 			if config.Reconnect < 0 {
 				return
 			}
 			if reconnect.Seconds() <= 0 {
-				ttyc.TtycPrintf("reconnecting\n")
+				ttyc.TtycPrintf("Reconnecting\n")
 			} else {
-				ttyc.TtycPrintf("reconnecting in %d seconds\n", int(reconnect.Seconds()))
+				ttyc.TtycPrintf("Reconnecting in %d seconds\n", int(reconnect.Seconds()))
 				<-time.After(reconnect)
 			}
 			reconnect = nextBackoff(reconnect, &config)
 
 			token, _, _, err := doHandshakeAndSetTerminal(&tokenHttpUrl, &sttyHttpUrl, credentials, &config)
 			if err != nil {
-				ttyc.TtycAngryPrintf("unable to perform authentication: %v\n", err)
+				ttyc.TtycAngryPrintf("Unable to perform authentication: %v\n", err)
 				continue
 			}
 			if err := client.Redial(&wsUrl, &token); err != nil {
-				ttyc.TtycAngryPrintf("unable to connect or authenticate to server: %v\n", err)
+				ttyc.TtycAngryPrintf("Unable to connect or authenticate to server: %v\n", err)
 				continue
 			}
-			ttyc.TtycPrintf("connected")
+			ttyc.TtycPrintf("Reconnected\n")
 			go client.Run(config.Watchdog)
 		}
 	}
