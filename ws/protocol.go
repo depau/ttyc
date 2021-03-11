@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -42,15 +43,17 @@ const (
 )
 
 type Client struct {
-	WsClient  *websocket.Conn
-	HttpResp  *http.Response
-	WinTitle  <-chan []byte
-	Output    <-chan []byte
-	Input     chan<- []byte
-	Error     <-chan error
-	CloseChan <-chan interface{}
-	winTitle  chan []byte
+	WsClient         *websocket.Conn
+	HttpResp         *http.Response
+	WinTitle         <-chan []byte
+	Output           <-chan []byte
+	Input            chan<- []byte
+	DetectedBaudrate <-chan int64
+	Error            <-chan error
+	CloseChan        <-chan interface{}
 
+	winTitle           chan []byte
+	detectedBaudrate   chan int64
 	output             chan []byte
 	input              chan []byte
 	flowControl        sync.Mutex
@@ -83,6 +86,7 @@ func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
 		winTitle:           make(chan []byte),
 		output:             make(chan []byte),
 		input:              make(chan []byte),
+		detectedBaudrate:   make(chan int64),
 		flowControlEngaged: false,
 		pong:               make(chan interface{}),
 		error:              make(chan error),
@@ -222,16 +226,32 @@ func (c *Client) chanLoop() {
 					c.flowControl.Unlock()
 				}
 			case MsgSetWindowTitle:
-			EmptyChanLoop:
+			EmptyWinTitleChanLoop:
 				// Empty channel so we don't block if the user is not reading
 				for {
 					select {
 					case <-c.winTitle:
 					default:
-						break EmptyChanLoop
+						break EmptyWinTitleChanLoop
 					}
 				}
 				c.winTitle <- data[1:]
+			case MsgDetectBaudrate:
+				// Empty channel so we don't block if the user is not reading
+			EmptyBaudChanLoop:
+				for {
+					select {
+					case <-c.detectedBaudrate:
+					default:
+						break EmptyBaudChanLoop
+					}
+				}
+				i, err := strconv.ParseInt(string(data[1:]), 10, 64)
+				if err != nil {
+					ttyc.TtycAngryPrintf("unable to parse detected baudrate: %v\n", err)
+					break
+				}
+				c.detectedBaudrate <- i
 			}
 			if data[0] == MsgOutput {
 			}

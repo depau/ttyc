@@ -17,20 +17,22 @@ import (
 
 const ClearSequence = "\033c"
 const (
-	EscapeChar byte = 0x14 // Ctrl+T
-	HelpChar   byte = '?'
-	QuitChar   byte = 'q'
-	ConfigChar byte = 'c'
-	ClearChar  byte = 'l'
-	CtrlTChar  byte = 't'
+	EscapeChar     byte = 0x14 // Ctrl+T
+	HelpChar       byte = '?'
+	QuitChar       byte = 'q'
+	ConfigChar     byte = 'c'
+	DetectBaudChar byte = 'b'
+	ClearChar      byte = 'l'
+	CtrlTChar      byte = 't'
 )
 
 var cmdsHelp = map[byte]string{
-	HelpChar:   "List available key commands",
-	ConfigChar: "Show configuration",
-	ClearChar:  "Clear screen",
-	QuitChar:   "Quit",
-	CtrlTChar:  "Send ctrl-t key code",
+	HelpChar:       "List available key commands",
+	ConfigChar:     "Show configuration",
+	DetectBaudChar: "Request baudrate detection (Wi-Se only)",
+	ClearChar:      "Clear screen",
+	QuitChar:       "Quit",
+	CtrlTChar:      "Send ctrl-t key code",
 }
 
 type stdfdsHandler struct {
@@ -136,6 +138,15 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 				ttyc.TtycPrintf("Failed to retrieve remote terminal configuration: %v\n", err)
 			}
 		}
+	case DetectBaudChar:
+		println("")
+		if s.implementation == ttyc.ImplementationWiSe {
+			ttyc.TtycPrintf("Requesting baud rate detection\n")
+			s.client.RequestBaudrateDetection()
+		} else {
+			ttyc.TtycAngryPrintf("Baud rate detection is only available for Wi-Se")
+		}
+
 	case ClearChar:
 		// Clear screen using ANSI/VT100 escape code
 		print(ClearSequence)
@@ -196,6 +207,14 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 			} else {
 				s.client.ResizeTerminal(int(winSize.Width), int(winSize.Height))
 			}
+		case title := <-s.client.WinTitle:
+			ttyc.TtycPrintf("title: %s\n", title)
+		case baud := <-s.client.DetectedBaudrate:
+			if baud < 0 {
+				ttyc.TtycAngryPrintf("baudrate detection was not successful\n")
+				break
+			}
+			ttyc.TtycPrintf("detected baudrate: %d\n", baud)
 		}
 	}
 }

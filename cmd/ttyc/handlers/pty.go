@@ -55,8 +55,19 @@ func NewPtyHandler(client *ws.Client, linkTo string) (tty TtyHandler, err error)
 func (p *ptyHandler) Run(errChan chan<- error) {
 	go utils.CopyChanToWriter(p.client.CloseChan, p.client.Output, p.pty, errChan)
 	go utils.CopyReaderToChan(p.client.CloseChan, p.pty, p.client.Input, errChan)
-	select {
-	case <-p.client.CloseChan:
+	for {
+		select {
+		case <-p.client.CloseChan:
+			return
+		case title := <-p.client.WinTitle:
+			ttyc.TtycPrintf("title: %s\n", title)
+		case baud := <-p.client.DetectedBaudrate:
+			if baud < 0 {
+				ttyc.TtycAngryPrintf("baudrate detection was not successful\n")
+				break
+			}
+			ttyc.TtycPrintf("detected baudrate: %d\n", baud)
+		}
 	}
 }
 
