@@ -20,7 +20,7 @@ type Config struct {
 	Port         int    `cli:"*P,port" usage:"Server port"`
 	Tls          bool   `cli:"t,tls" usage:"Use TLS" dft:"false"`
 	Watchdog     int    `cli:"w,watchdog" usage:"WebSocket ping interval in seconds, 0 to disable, default 2." dft:"2"`
-	Reconnect    int    `cli:"r,reconnect" usage:"Reconnection interval in seconds, -1 to disable, default 3." dft:"3"`
+	Reconnect    int    `cli:"r,reconnect" usage:"Reconnection interval in seconds, -1 to disable, default 3." dft:"2"`
 	Backoff      string `cli:"backoff" usage:"Backoff type, none, linear, exponential, defaults to linear" dft:"none"`
 	BackoffValue uint   `cli:"backoff-value" usage:"For linear backoff, increase reconnect interval by this amount of seconds after each iteration. For exponential backoff, multiply reconnect interval by this amount. Default 2" dft:"2"`
 	User         string `cli:"u,user" usage:"Username for authentication" dft:""`
