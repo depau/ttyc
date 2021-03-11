@@ -30,6 +30,9 @@ const (
 	MsgResume         byte = '3'
 	MsgJsonData       byte = '{'
 
+	// Both
+	MsgDetectBaudrate byte = 'B'
+
 	// Server messages
 	MsgOutput         byte = '0'
 	MsgSetWindowTitle byte = '1'
@@ -69,6 +72,7 @@ type TtyClientOps interface {
 	Redial(wsUrl *url.URL, token *string) error
 	Run()
 	ResizeTerminal(cols int, rows int)
+	RequestBaudrateDetect()
 	Pause()
 	Resume()
 	SoftClose() error
@@ -310,4 +314,8 @@ func (c *Client) Pause() {
 
 func (c *Client) Resume() {
 	c.toWs <- []byte{MsgResume}
+}
+
+func (c *Client) RequestBaudrateDetection() {
+	c.toWs <- []byte{MsgDetectBaudrate}
 }
