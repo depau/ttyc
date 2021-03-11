@@ -210,11 +210,11 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 		case title := <-s.client.WinTitle:
 			ttyc.TtycPrintf("Title: %s\n", title)
 		case baud := <-s.client.DetectedBaudrate:
-			if baud < 0 {
-				ttyc.TtycAngryPrintf("Baudrate detection was not successful\n")
+			if baud <= 0 {
+				ttyc.TtycAngryPrintf("Baudrate detection was not successful (detection only works while input is received)\n")
 				break
 			}
-			ttyc.TtycPrintf("Detected baudrate: %d\n", baud)
+			ttyc.TtycPrintf("Detected baudrate: %d bps\n", baud)
 		}
 	}
 }
