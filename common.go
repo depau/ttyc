@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/Depau/ttyc/utils"
 	strftimeMod "github.com/lestrrat-go/strftime"
 	"io"
 	"io/ioutil"
@@ -41,22 +42,24 @@ type sttyInDTO struct {
 	Parity   *int  `json:"parity"`
 }
 
-func GetBaseUrl(scheme *string, host *string, port int, user *string, pass *string) url.URL {
+func GetBaseUrl(scheme *string, host *string, port int) url.URL {
 	ret := url.URL{
 		Scheme: *scheme,
 		Host:   fmt.Sprintf("%s:%d", *host, port),
 	}
-	if user != nil && *user != "" {
-		ret.User = url.UserPassword(*user, *pass)
-	}
 	return ret
 }
 
-func Handshake(url *url.URL) (token string, impl Implementation, server string, err error) {
+func Handshake(url *url.URL, credentials *url.Userinfo) (token string, impl Implementation, server string, err error) {
 	var resp *http.Response
 	var body []byte
 
 	if resp, err = http.Get(url.String()); err != nil {
+		Trace()
+		return
+	}
+	resp, err = utils.EnsureAuth(resp, credentials, nil)
+	if err != nil {
 		Trace()
 		return
 	}
@@ -84,7 +87,7 @@ func Handshake(url *url.URL) (token string, impl Implementation, server string, 
 	return
 }
 
-func GetStty(url *url.URL) (stty SttyDTO, err error) {
+func GetStty(url *url.URL, credentials *url.Userinfo) (stty SttyDTO, err error) {
 	httpClient := http.Client{
 		Timeout: 3 * time.Second,
 	}
@@ -93,6 +96,12 @@ func GetStty(url *url.URL) (stty SttyDTO, err error) {
 		Trace()
 		return
 	}
+	resp, err = utils.EnsureAuth(resp, credentials, nil)
+	if err != nil {
+		Trace()
+		return
+	}
+
 	buf, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		Trace()
@@ -124,7 +133,7 @@ func GetStty(url *url.URL) (stty SttyDTO, err error) {
 	return
 }
 
-func Stty(url *url.URL, dto *SttyDTO) error {
+func Stty(url *url.URL, credentials *url.Userinfo, dto *SttyDTO) error {
 	// Generate json manually since golang can't generate it properly
 	var jsonItems []string
 	if dto.Baudrate != nil {
@@ -155,6 +164,12 @@ func Stty(url *url.URL, dto *SttyDTO) error {
 		Trace()
 		return err
 	}
+	resp, err = utils.EnsureAuth(resp, credentials, bytes.NewBuffer([]byte(sb.String())))
+	if err != nil {
+		Trace()
+		return err
+	}
+
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("HTTP status %d", resp.StatusCode)
 	}

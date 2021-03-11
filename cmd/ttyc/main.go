@@ -62,7 +62,7 @@ func (argv *Config) Validate(ctx *cli.Context) error {
 	return nil
 }
 
-func stty(config *Config, sttyUrl *url.URL) error {
+func stty(config *Config, sttyUrl *url.URL, credentials *url.Userinfo) error {
 	dto := ttyc.SttyDTO{
 		Baudrate: nil,
 		Databits: nil,
@@ -85,7 +85,7 @@ func stty(config *Config, sttyUrl *url.URL) error {
 		dto.Parity = &config.Parity
 	}
 
-	err := ttyc.Stty(sttyUrl, &dto)
+	err := ttyc.Stty(sttyUrl, credentials, &dto)
 	if err != nil {
 		ttyc.Trace()
 		return err
@@ -93,15 +93,15 @@ func stty(config *Config, sttyUrl *url.URL) error {
 	return nil
 }
 
-func doHandshakeAndSetTerminal(tokenUrl *url.URL, sttyHttpUrl *url.URL, config *Config) (token string, implementation ttyc.Implementation, server string, err error) {
-	token, implementation, server, err = ttyc.Handshake(tokenUrl)
+func doHandshakeAndSetTerminal(tokenUrl *url.URL, sttyHttpUrl *url.URL, credentials *url.Userinfo, config *Config) (token string, implementation ttyc.Implementation, server string, err error) {
+	token, implementation, server, err = ttyc.Handshake(tokenUrl, credentials)
 	if err != nil {
 		err = fmt.Errorf("handshake failed (unable to connect or wrong user/pass): %v\n", err)
 		return
 	}
 
 	if implementation == ttyc.ImplementationWiSe {
-		if err := stty(config, sttyHttpUrl); err != nil {
+		if err := stty(config, sttyHttpUrl, credentials); err != nil {
 			err = fmt.Errorf("unable to set remote UART parameters: %v\n", err)
 		}
 	}
@@ -143,15 +143,20 @@ func main() {
 		wsScheme = "ws"
 	}
 
-	tokenHttpUrl := ttyc.GetBaseUrl(&httpScheme, &config.Host, config.Port, &config.User, &config.Pass)
+	var credentials *url.Userinfo = nil
+	if config.User != "" {
+		credentials = url.UserPassword(config.User, config.Pass)
+	}
+
+	tokenHttpUrl := ttyc.GetBaseUrl(&httpScheme, &config.Host, config.Port)
 	tokenHttpUrl.Path = "/token"
-	sttyHttpUrl := ttyc.GetBaseUrl(&httpScheme, &config.Host, config.Port, &config.User, &config.Pass)
+	sttyHttpUrl := ttyc.GetBaseUrl(&httpScheme, &config.Host, config.Port)
 	sttyHttpUrl.Path = "/stty"
 	// Auth is performed using token, and the WebSocket library doesn't support auth data in the URL anyway
-	wsUrl := ttyc.GetBaseUrl(&wsScheme, &config.Host, config.Port, nil, nil)
+	wsUrl := ttyc.GetBaseUrl(&wsScheme, &config.Host, config.Port)
 	wsUrl.Path = "/ws"
 
-	token, implementation, server, err := doHandshakeAndSetTerminal(&tokenHttpUrl, &sttyHttpUrl, &config)
+	token, implementation, server, err := doHandshakeAndSetTerminal(&tokenHttpUrl, &sttyHttpUrl, credentials, &config)
 	if err != nil {
 		ttyc.TtycAngryPrintf("%v\n", err)
 		os.Exit(1)
@@ -170,7 +175,7 @@ func main() {
 
 	var handler handlers.TtyHandler
 	if config.Tty == "" {
-		handler, err = handlers.NewStdFdsHandler(client, implementation, &sttyHttpUrl, server)
+		handler, err = handlers.NewStdFdsHandler(client, implementation, &sttyHttpUrl, credentials, server)
 		if err != nil {
 			ttyc.TtycAngryPrintf("unable to launch console handler: %v\n", err)
 			os.Exit(1)
@@ -213,7 +218,7 @@ func main() {
 			}
 			reconnect = nextBackoff(reconnect, &config)
 
-			token, _, _, err := doHandshakeAndSetTerminal(&tokenHttpUrl, &sttyHttpUrl, &config)
+			token, _, _, err := doHandshakeAndSetTerminal(&tokenHttpUrl, &sttyHttpUrl, credentials, &config)
 			if err != nil {
 				ttyc.TtycAngryPrintf("unable to perform authentication: %v\n", err)
 				continue

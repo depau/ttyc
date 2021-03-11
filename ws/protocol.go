@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 )
 
@@ -33,6 +34,8 @@ const (
 	MsgOutput         byte = '0'
 	MsgSetWindowTitle byte = '1'
 	MsgPreferences    byte = '2'
+	MsgServerPause    byte = 'S'
+	MsgServerResume   byte = 'Q'
 )
 
 type Client struct {
@@ -43,12 +46,14 @@ type Client struct {
 	Input     chan<- []byte
 	Error     <-chan error
 	CloseChan <-chan interface{}
+	winTitle  chan []byte
 
-	winTitle chan []byte
-	output   chan []byte
-	input    chan []byte
-	pong     chan interface{}
-	error    chan error
+	output             chan []byte
+	input              chan []byte
+	flowControl        sync.Mutex
+	flowControlEngaged bool
+	pong               chan interface{}
+	error              chan error
 
 	toWs       chan []byte
 	fromWs     chan []byte
@@ -71,16 +76,17 @@ type TtyClientOps interface {
 
 func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
 	client = &Client{
-		winTitle:   make(chan []byte),
-		output:     make(chan []byte),
-		input:      make(chan []byte),
-		pong:       make(chan interface{}),
-		error:      make(chan error),
-		toWs:       make(chan []byte),
-		fromWs:     make(chan []byte),
-		closeChan:  make(chan interface{}),
-		isShutdown: true,
-		closed:     false,
+		winTitle:           make(chan []byte),
+		output:             make(chan []byte),
+		input:              make(chan []byte),
+		flowControlEngaged: false,
+		pong:               make(chan interface{}),
+		error:              make(chan error),
+		toWs:               make(chan []byte),
+		fromWs:             make(chan []byte),
+		closeChan:          make(chan interface{}),
+		isShutdown:         true,
+		closed:             false,
 	}
 	if err := client.Redial(wsUrl, token); err != nil {
 		return nil, err
@@ -162,6 +168,11 @@ func (c *Client) doShutdown(err error) {
 		close(c.shutdown)
 		c.isShutdown = true
 
+		if c.flowControlEngaged {
+			c.flowControlEngaged = false
+			c.flowControl.Unlock()
+		}
+
 		if err != nil {
 			c.error <- err
 		}
@@ -193,17 +204,32 @@ func (c *Client) chanLoop() {
 			if len(data) <= 0 {
 				continue
 			}
-			if data[0] == MsgOutput {
+			switch data[0] {
+			case MsgOutput:
 				c.output <- data[1:]
-			} //else if data[0] == MsgSetWindowTitle {
-			//	c.winTitle <- data[1:]
-			//}
+			case MsgServerPause:
+				if !c.flowControlEngaged {
+					c.flowControlEngaged = true
+					c.flowControl.Lock()
+				}
+			case MsgServerResume:
+				if c.flowControlEngaged {
+					c.flowControlEngaged = false
+					c.flowControl.Unlock()
+				}
+			}
+			if data[0] == MsgOutput {
+			}
+			// Ignore WinTitle since it caused an issue and we're not using it anyway anywhere
 			// Ignore MsgSetPreferences since we're not Xterm.js
+
 		case data := <-c.toWs:
 			if len(data) == 0 {
 				continue
 			}
+			c.flowControl.Lock()
 			err := c.WsClient.WriteMessage(websocket.BinaryMessage, data)
+			c.flowControl.Unlock()
 			if err != nil {
 				ttyc.Trace()
 				c.doShutdown(err)

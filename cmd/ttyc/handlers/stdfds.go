@@ -38,14 +38,16 @@ type stdfdsHandler struct {
 	console          *console.Console
 	implementation   ttyc.Implementation
 	sttyUrl          *url.URL
+	credentials      *url.Userinfo
 	server           string
 	expectingCommand bool
 }
 
-func NewStdFdsHandler(client *ws.Client, implementation ttyc.Implementation, sttyURL *url.URL, server string) (tty TtyHandler, err error) {
+func NewStdFdsHandler(client *ws.Client, implementation ttyc.Implementation, sttyURL *url.URL, credentials *url.Userinfo, server string) (tty TtyHandler, err error) {
 	tty = &stdfdsHandler{
 		client:           client,
 		implementation:   implementation,
+		credentials:      credentials,
 		sttyUrl:          sttyURL,
 		server:           server,
 		console:          nil,
@@ -119,7 +121,7 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 		}
 		ttyc.TtycPrintf(" Remote server: %s%s\n", s.client.WsClient.RemoteAddr().String(), additionalServerInfo)
 		if s.implementation == ttyc.ImplementationWiSe {
-			ttyConf, err := ttyc.GetStty(s.sttyUrl)
+			ttyConf, err := ttyc.GetStty(s.sttyUrl, s.credentials)
 			if err == nil {
 				ttyc.TtycPrintf(" Baudrate: %d\n", *ttyConf.Baudrate)
 				ttyc.TtycPrintf(" Databits: %d\n", *ttyConf.Databits)
