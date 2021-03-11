@@ -177,16 +177,15 @@ func main() {
 	if config.Tty == "" {
 		handler, err = handlers.NewStdFdsHandler(client, implementation, &sttyHttpUrl, credentials, server)
 		if err != nil {
-			ttyc.TtycAngryPrintf("unable to launch console handler: %v\n", err)
+			ttyc.TtycAngryPrintf("Unable to launch console handler: %v\n", err)
 			os.Exit(1)
 		}
 		ttyc.TtycPrintf("Press ctrl-t q to quit, ctrl-t ? for help\n")
 		ttyc.TtycPrintf("Connected\n")
-		println()
 	} else {
 		handler, err = handlers.NewPtyHandler(client, config.Tty)
 		if err != nil {
-			ttyc.TtycAngryPrintf("unable to launch PTY handler: %v\n", err)
+			ttyc.TtycAngryPrintf("Unable to launch PTY handler: %v\n", err)
 			os.Exit(1)
 		}
 	}

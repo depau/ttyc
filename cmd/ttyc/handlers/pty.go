@@ -60,13 +60,13 @@ func (p *ptyHandler) Run(errChan chan<- error) {
 		case <-p.client.CloseChan:
 			return
 		case title := <-p.client.WinTitle:
-			ttyc.TtycPrintf("title: %s\n", title)
+			ttyc.TtycPrintf("Title: %s\n", title)
 		case baud := <-p.client.DetectedBaudrate:
 			if baud < 0 {
-				ttyc.TtycAngryPrintf("baudrate detection was not successful\n")
+				ttyc.TtycAngryPrintf("Baudrate detection was not successful\n")
 				break
 			}
-			ttyc.TtycPrintf("detected baudrate: %d\n", baud)
+			ttyc.TtycPrintf("Detected baudrate: %d\n", baud)
 		}
 	}
 }
