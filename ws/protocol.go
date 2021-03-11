@@ -221,6 +221,17 @@ func (c *Client) chanLoop() {
 					c.flowControlEngaged = false
 					c.flowControl.Unlock()
 				}
+			case MsgSetWindowTitle:
+			EmptyChanLoop:
+				// Empty channel so we don't block if the user is not reading
+				for {
+					select {
+					case <-c.winTitle:
+					default:
+						break EmptyChanLoop
+					}
+				}
+				c.winTitle <- data[1:]
 			}
 			if data[0] == MsgOutput {
 			}
