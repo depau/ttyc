@@ -101,6 +101,7 @@ func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
 	}
 	client.CloseChan = client.closeChan
 	client.WinTitle = client.winTitle
+	client.DetectedBaudrate = client.detectedBaudrate
 	client.Output = client.output
 	client.Input = client.input
 	client.Error = client.error
