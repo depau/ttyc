@@ -166,22 +166,10 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 }
 
 func (s *stdfdsHandler) Run(errChan chan<- error) {
-	current := console.Current()
-	s.console = &current
-	if err := current.SetRaw(); err != nil {
-		ttyc.Trace()
+	if err := s.HandleReconnect(); err != nil {
 		errChan <- err
 		return
 	}
-	winSize, err := current.Size()
-	if err != nil {
-		ttyc.Trace()
-		errChan <- err
-		return
-	}
-	//println("RESIZE TERM")
-	s.client.ResizeTerminal(int(winSize.Width), int(winSize.Height))
-	//println("TERM RESIZED")
 
 	cmdHandlingChan := make(chan []byte, 1)
 	go utils.CopyReaderToChan(s.client.CloseChan, os.Stdin, cmdHandlingChan, errChan)
@@ -200,7 +188,7 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 			return
 		case <-winch:
 			//println("SELECTED stdfds Run winch")
-			if winSize, err := current.Size(); err != nil {
+			if winSize, err := (*s.console).Size(); err != nil {
 				ttyc.Trace()
 				errChan <- err
 				return
@@ -219,13 +207,38 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 	}
 }
 
-func (s *stdfdsHandler) Close() error {
+func (s *stdfdsHandler) HandleDisconnect() error {
 	if s.console != nil {
 		if err := (*s.console).Reset(); err != nil {
 			ttyc.Trace()
 			return err
 		}
 		s.console = nil
+	}
+	return nil
+}
+
+func (s *stdfdsHandler) HandleReconnect() error {
+	current := console.Current()
+	s.console = &current
+	if err := current.SetRaw(); err != nil {
+		ttyc.Trace()
+		return err
+	}
+	winSize, err := current.Size()
+	if err != nil {
+		ttyc.Trace()
+		return err
+	}
+	//println("RESIZE TERM")
+	s.client.ResizeTerminal(int(winSize.Width), int(winSize.Height))
+	//println("TERM RESIZED")
+	return nil
+}
+
+func (s *stdfdsHandler) Close() error {
+	if err := s.HandleDisconnect(); err != nil {
+		return err
 	}
 	return nil
 }

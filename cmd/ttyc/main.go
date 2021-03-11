@@ -206,6 +206,12 @@ func main() {
 			ttyc.TtycAngryPrintf("%v\n", fatalError)
 			return
 		case fatalError = <-client.Error:
+			// Restore terminal, if any
+			if err := handler.HandleDisconnect(); err != nil {
+				ttyc.TtycAngryPrintf("Error while handling disconnection: %v\n", err)
+				return
+			}
+
 			println()
 			ttyc.TtycAngryPrintf("Server disconnected: %v\n", fatalError)
 			if err := client.SoftClose(); err != nil {
@@ -237,6 +243,12 @@ func main() {
 			}
 			ttyc.TtycPrintf("Reconnected\n")
 			go client.Run(config.Watchdog)
+
+			// Put back terminal into raw mode
+			if err := handler.HandleReconnect(); err != nil {
+				ttyc.TtycAngryPrintf("Error while handling reconnection: %v\n", err)
+				return
+			}
 		}
 	}
 

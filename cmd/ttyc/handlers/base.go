@@ -7,4 +7,6 @@ import (
 type TtyHandler interface {
 	io.Closer
 	Run(errChan chan<- error)
+	HandleDisconnect() error
+	HandleReconnect() error
 }

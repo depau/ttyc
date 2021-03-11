@@ -71,6 +71,14 @@ func (p *ptyHandler) Run(errChan chan<- error) {
 	}
 }
 
+func (p *ptyHandler) HandleDisconnect() error {
+	return nil
+}
+
+func (p *ptyHandler) HandleReconnect() error {
+	return nil
+}
+
 func (p *ptyHandler) Close() error {
 	return p.pty.Close()
 }
