@@ -7,6 +7,8 @@ import (
 	"github.com/Depau/ttyc/ws"
 	"github.com/mattn/go-isatty"
 	"github.com/mkideal/cli"
+	"math"
+	"net/http"
 	"net/url"
 	"os"
 	"time"
@@ -147,6 +149,9 @@ func main() {
 	if config.User != "" {
 		credentials = url.UserPassword(config.User, config.Pass)
 	}
+
+	// Reduce HTTP timeout so that the client doesn't stall on reconnection when the server is down for a few seconds
+	http.DefaultClient.Timeout = time.Duration(math.Max(math.Min(float64(config.Reconnect), 5.0), 2.0)) * time.Second
 
 	tokenHttpUrl := ttyc.GetBaseUrl(&httpScheme, &config.Host, config.Port)
 	tokenHttpUrl.Path = "/token"
