@@ -21,7 +21,7 @@ const (
 	HelpChar       byte = '?'
 	QuitChar       byte = 'q'
 	ConfigChar     byte = 'c'
-	DetectBaudChar byte = 'b'
+	DetectBaudChar byte = 'a'
 	ClearChar      byte = 'l'
 	CtrlTChar      byte = 't'
 )
