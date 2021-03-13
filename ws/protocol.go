@@ -31,6 +31,7 @@ const (
 	MsgPause          byte = '2'
 	MsgResume         byte = '3'
 	MsgJsonData       byte = '{'
+	MsgBreak          byte = 'b'
 
 	// Both
 	MsgDetectBaudrate byte = 'B'
@@ -79,6 +80,7 @@ type TtyClientOps interface {
 	RequestBaudrateDetect()
 	Pause()
 	Resume()
+	SendBreak()
 	SoftClose() error
 }
 
@@ -371,4 +373,8 @@ func (c *Client) Resume() {
 
 func (c *Client) RequestBaudrateDetection() {
 	c.toWs <- []byte{MsgDetectBaudrate}
+}
+
+func (c *Client) SendBreak() {
+	c.toWs <- []byte{MsgBreak}
 }

@@ -21,7 +21,8 @@ const (
 	HelpChar       byte = '?'
 	QuitChar       byte = 'q'
 	ConfigChar     byte = 'c'
-	DetectBaudChar byte = 'a'
+	BreakChar      byte = 'b'
+	DetectBaudChar byte = 'B'
 	ClearChar      byte = 'l'
 	CtrlTChar      byte = 't'
 )
@@ -29,6 +30,7 @@ const (
 var cmdsHelp = map[byte]string{
 	HelpChar:       "List available key commands",
 	ConfigChar:     "Show configuration",
+	BreakChar:      "Send break",
 	DetectBaudChar: "Request baudrate detection (Wi-Se only)",
 	ClearChar:      "Clear screen",
 	QuitChar:       "Quit",
@@ -146,7 +148,8 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 		} else {
 			ttyc.TtycAngryPrintf("Baud rate detection is only available for Wi-Se")
 		}
-
+	case BreakChar:
+		s.client.SendBreak()
 	case ClearChar:
 		// Clear screen using ANSI/VT100 escape code
 		print(ClearSequence)
