@@ -27,14 +27,22 @@ const (
 	CtrlTChar      byte = 't'
 )
 
-var cmdsHelp = map[byte]string{
-	HelpChar:       "List available key commands",
-	ConfigChar:     "Show configuration",
-	BreakChar:      "Send break",
-	DetectBaudChar: "Request baudrate detection (Wi-Se only)",
-	ClearChar:      "Clear screen",
-	QuitChar:       "Quit",
-	CtrlTChar:      "Send ctrl-t key code",
+type cmdInfo struct {
+	HelpText    string
+	NonStandard bool
+}
+
+var cmdsHelpOrder = []byte{HelpChar, BreakChar, ConfigChar, ClearChar, QuitChar, CtrlTChar, DetectBaudChar}
+var cmdsInfo = map[byte]cmdInfo{
+	// Available for all implementations
+	QuitChar:   {"Quit", false},
+	ClearChar:  {"Clear screen", false},
+	CtrlTChar:  {"Send ctrl-t key code", false},
+	HelpChar:   {"List available key commands", false},
+	ConfigChar: {"Show configuration", false},
+	// Available on Wi-Se server only
+	BreakChar:      {"Send break", true},
+	DetectBaudChar: {"Request baudrate detection", true},
 }
 
 type stdfdsHandler struct {
@@ -160,8 +168,12 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 	case HelpChar:
 		println("")
 		ttyc.TtycPrintf("Key commands:\n")
-		for key, val := range cmdsHelp {
-			ttyc.TtycPrintf(" ctrl-t %c   %s\n", key, val)
+		for _, key := range cmdsHelpOrder {
+			info := cmdsInfo[key]
+			if s.implementation != ttyc.ImplementationWiSe && info.NonStandard {
+				continue
+			}
+			ttyc.TtycPrintf(" ctrl-t %c   %s\n", key, info.HelpText)
 		}
 	}
 
