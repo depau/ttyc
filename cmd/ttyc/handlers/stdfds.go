@@ -266,7 +266,17 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 			cmdsHelpOrder[i] = int(key)
 			i++
 		}
-		sort.Ints(cmdsHelpOrder)
+		// Sort chars with lowercase next to uppercase
+		keyFn := func(index int) int {
+			char := cmdsHelpOrder[index]
+			ret := char * 2
+			if char >= 'a' && char <= 'z' {
+				ret = (char-32)*2 - 1
+			}
+			return ret
+		}
+		comparator := func(c1 int, c2 int) bool { return keyFn(c1) < keyFn(c2) }
+		sort.Slice(cmdsHelpOrder, comparator)
 
 		for _, key := range cmdsHelpOrder {
 			info := cmdsInfo[byte(key)]
