@@ -30,6 +30,7 @@ type Config struct {
 	Parity       string `cli:"p,parity" usage:"(Wi-Se only) Set remote parity [odd|even|none]" dft:""`
 	Databits     int    `cli:"d,databits" usage:"(Wi-Se only) Set remote data bits [5|6|7|8]" dft:"-1"`
 	Stopbits     int    `cli:"s,stopbits" usage:"(Wi-Se only) Set remote stop bits [1|2]" dft:"-1"`
+	Version      bool   `cli:"!v,version" usage:"Show version"`
 }
 
 func (argv *Config) AutoHelp() bool {
@@ -130,6 +131,12 @@ func main() {
 
 	if ret != 0 || config.Help {
 		os.Exit(ret)
+	}
+	if config.Version {
+		fmt.Printf("ttyc %s\n", ttyc.VERSION)
+		println(ttyc.COPYRIGHT)
+
+		os.Exit(0)
 	}
 
 	//fmt.Printf("%+v\n", config);
