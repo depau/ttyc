@@ -63,12 +63,13 @@ type Client struct {
 	pong               chan interface{}
 	error              chan error
 
-	toWs       chan []byte
-	fromWs     chan []byte
-	shutdown   chan interface{}
-	closeChan  chan interface{}
-	isShutdown bool
-	closed     bool
+	wsOperationLock sync.Mutex
+	toWs            chan []byte
+	fromWs          chan []byte
+	shutdown        chan interface{}
+	closeChan       chan interface{}
+	isShutdown      bool
+	closed          bool
 }
 
 type TtyClientOps interface {
@@ -130,7 +131,10 @@ func (c *Client) Redial(wsUrl *url.URL, token *string) error {
 		AuthToken: *token,
 	}
 	message, _ := json.Marshal(authDTO)
-	if err = wsClient.WriteMessage(websocket.BinaryMessage, message); err != nil {
+	c.wsOperationLock.Lock()
+	err = wsClient.WriteMessage(websocket.BinaryMessage, message)
+	c.wsOperationLock.Unlock()
+	if err != nil {
 		ttyc.Trace()
 		return err
 	}
@@ -146,7 +150,10 @@ func (c *Client) SoftClose() error {
 	if !c.isShutdown {
 		return fmt.Errorf("can only soft-close in order to redial if the client is already shut down")
 	}
-	if err := c.WsClient.Close(); err != nil {
+	c.wsOperationLock.Lock()
+	err := c.WsClient.Close()
+	c.wsOperationLock.Unlock()
+	if err != nil {
 		ttyc.Trace()
 		return err
 	}
@@ -287,7 +294,9 @@ func (c *Client) chanLoop() {
 				continue
 			}
 			c.flowControl.Lock()
+			c.wsOperationLock.Lock()
 			err := c.WsClient.WriteMessage(websocket.BinaryMessage, data)
+			c.wsOperationLock.Unlock()
 			c.flowControl.Unlock()
 			if err != nil {
 				ttyc.Trace()
@@ -300,7 +309,11 @@ func (c *Client) chanLoop() {
 			}
 			// I could avoid duplicating the code but I'd rather avoid the additional copy, since writing to the
 			// WebSocket is this goroutine's job anyway.
+			c.flowControl.Lock()
+			c.wsOperationLock.Lock()
 			err := c.WsClient.WriteMessage(websocket.BinaryMessage, append([]byte{MsgInput}, data...))
+			c.wsOperationLock.Unlock()
+			c.flowControl.Unlock()
 			if err != nil {
 				ttyc.Trace()
 				c.doShutdown(err)
@@ -323,7 +336,10 @@ func (c *Client) watchdog(interval int) {
 	for !c.closed && !c.isShutdown {
 		select {
 		case <-time.After(nextPing.Sub(time.Now())):
-			if err := c.WsClient.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+			c.wsOperationLock.Lock()
+			err := c.WsClient.WriteMessage(websocket.PingMessage, []byte{})
+			c.wsOperationLock.Unlock()
+			if err != nil {
 				ttyc.Trace()
 				c.doShutdown(err)
 				return
