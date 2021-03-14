@@ -11,14 +11,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"time"
 )
 
 type Config struct {
 	Help         bool   `cli:"!h,help" usage:"Show help"`
-	Host         string `cli:"*H,host" usage:"Server hostname"`
-	Port         int    `cli:"*P,port" usage:"Server port"`
-	Tls          bool   `cli:"t,tls" usage:"Use TLS" dft:"false"`
+	Url          string `cli:"U,url" usage:"Server URL"`
 	Watchdog     int    `cli:"w,watchdog" usage:"WebSocket ping interval in seconds, 0 to disable, default 2." dft:"2"`
 	Reconnect    int    `cli:"r,reconnect" usage:"Reconnection interval in seconds, -1 to disable, default 3." dft:"2"`
 	Backoff      string `cli:"backoff" usage:"Backoff type, none, linear, exponential, defaults to linear" dft:"none"`
@@ -41,8 +40,12 @@ func (argv *Config) Validate(ctx *cli.Context) error {
 	if !(argv.User != "" && argv.Pass != "") && !(argv.User == "" && argv.Pass == "") {
 		return fmt.Errorf("user and password must be both provided or not provided at all")
 	}
-	if argv.Port <= 0 || argv.Port > 0xFFFF {
-		return fmt.Errorf("invalid port: %d", argv.Port)
+	parsedUrl, err := url.Parse(argv.Url)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %v", err)
+	}
+	if parsedUrl.Scheme != "http" && parsedUrl.Scheme != "https" {
+		return fmt.Errorf("invalid URL, must be http or https")
 	}
 	if argv.Tty == "" && (!isatty.IsTerminal(os.Stdout.Fd()) || !isatty.IsTerminal(os.Stdin.Fd())) {
 		return fmt.Errorf("cannot launch in terminal mode when standard file descriptors aren't terminals")
@@ -141,40 +144,40 @@ func main() {
 
 	//fmt.Printf("%+v\n", config);
 
-	var httpScheme string
-	var wsScheme string
-
-	if config.Tls {
-		httpScheme = "https"
-		wsScheme = "wss"
-	} else {
-		httpScheme = "http"
-		wsScheme = "ws"
-	}
+	inputUrl, _ := url.Parse(config.Url)
 
 	var credentials *url.Userinfo = nil
 	if config.User != "" {
 		credentials = url.UserPassword(config.User, config.Pass)
+	} else if config.User == "" && inputUrl.User != nil {
+		credentials = inputUrl.User
 	}
+	inputUrl.User = nil
 
 	// Reduce HTTP timeout so that the client doesn't stall on reconnection when the server is down for a few seconds
 	http.DefaultClient.Timeout = time.Duration(math.Max(math.Min(float64(config.Reconnect), 5.0), 2.0)) * time.Second
 
-	tokenHttpUrl := ttyc.GetBaseUrl(&httpScheme, &config.Host, config.Port)
-	tokenHttpUrl.Path = "/token"
-	sttyHttpUrl := ttyc.GetBaseUrl(&httpScheme, &config.Host, config.Port)
-	sttyHttpUrl.Path = "/stty"
-	// Auth is performed using token, and the WebSocket library doesn't support auth data in the URL anyway
-	wsUrl := ttyc.GetBaseUrl(&wsScheme, &config.Host, config.Port)
-	wsUrl.Path = "/ws"
+	tokenHttpUrl, _ := url.Parse(inputUrl.String())
+	tokenHttpUrl.Path = path.Join(inputUrl.Path, "token")
 
-	token, implementation, server, err := doHandshakeAndSetTerminal(&tokenHttpUrl, &sttyHttpUrl, credentials, &config)
+	sttyHttpUrl, _ := url.Parse(inputUrl.String())
+	sttyHttpUrl.Path = path.Join(inputUrl.Path, "stty")
+
+	wsUrl, _ := url.Parse(inputUrl.String())
+	wsUrl.Path = path.Join(inputUrl.Path, "ws")
+	if wsUrl.Scheme == "https" {
+		wsUrl.Scheme = "wss"
+	} else {
+		wsUrl.Scheme = "ws"
+	}
+
+	token, implementation, server, err := doHandshakeAndSetTerminal(tokenHttpUrl, sttyHttpUrl, credentials, &config)
 	if err != nil {
 		ttyc.TtycAngryPrintf("%v\n", err)
 		os.Exit(1)
 	}
 
-	client, err := ws.DialAndAuth(&wsUrl, &token)
+	client, err := ws.DialAndAuth(wsUrl, &token)
 	if err != nil {
 		ttyc.TtycAngryPrintf("unable to connect or authenticate to server: %v\n", err)
 		os.Exit(1)
@@ -187,7 +190,7 @@ func main() {
 
 	var handler handlers.TtyHandler
 	if config.Tty == "" {
-		handler, err = handlers.NewStdFdsHandler(client, implementation, &sttyHttpUrl, credentials, server)
+		handler, err = handlers.NewStdFdsHandler(client, implementation, sttyHttpUrl, credentials, server)
 		if err != nil {
 			ttyc.TtycAngryPrintf("Unable to launch console handler: %v\n", err)
 			os.Exit(1)
@@ -238,12 +241,12 @@ func main() {
 				}
 				reconnect = nextBackoff(reconnect, &config)
 
-				token, _, _, err := doHandshakeAndSetTerminal(&tokenHttpUrl, &sttyHttpUrl, credentials, &config)
+				token, _, _, err := doHandshakeAndSetTerminal(tokenHttpUrl, sttyHttpUrl, credentials, &config)
 				if err != nil {
 					ttyc.TtycAngryPrintf("Unable to perform authentication: %v\n", err)
 					continue
 				}
-				if err := client.Redial(&wsUrl, &token); err != nil {
+				if err := client.Redial(wsUrl, &token); err != nil {
 					ttyc.TtycAngryPrintf("Unable to connect or authenticate to server: %v\n", err)
 					continue
 				}

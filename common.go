@@ -48,14 +48,6 @@ type sttyInDTO struct {
 	Parity   *int  `json:"parity"`
 }
 
-func GetBaseUrl(scheme *string, host *string, port int) url.URL {
-	ret := url.URL{
-		Scheme: *scheme,
-		Host:   fmt.Sprintf("%s:%d", *host, port),
-	}
-	return ret
-}
-
 func Handshake(url *url.URL, credentials *url.Userinfo) (token string, impl Implementation, server string, err error) {
 	var resp *http.Response
 	var body []byte
