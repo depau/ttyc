@@ -2,14 +2,18 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/Depau/ttyc"
 	"github.com/Depau/ttyc/utils"
 	"github.com/Depau/ttyc/ws"
 	"github.com/containerd/console"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 )
 
@@ -29,12 +33,18 @@ const (
 	StatsChar      byte = 's'
 )
 
+type StatsDTO struct {
+	Tx     int64 `json:"tx"`
+	Rx     int64 `json:"rx"`
+	TxRate int64 `json:"txRateBps"`
+	RxRate int64 `json:"rxRateBps"`
+}
+
 type cmdInfo struct {
 	HelpText    string
 	NonStandard bool
 }
 
-var cmdsHelpOrder = []byte{HelpChar, BreakChar, ConfigChar, ClearChar, QuitChar, CtrlTChar, DetectBaudChar, VersionChar}
 var cmdsInfo = map[byte]cmdInfo{
 	// Available for all implementations
 	QuitChar:    {"Quit", false},
@@ -121,6 +131,37 @@ func (s *stdfdsHandler) handleStdin(closeChan <-chan interface{}, inChan <-chan 
 	}
 }
 
+func (s *stdfdsHandler) printStats() {
+	statsUrl := ttyc.GetUrlFor(ttyc.UrlForStats, s.client.BaseUrl)
+	res, err := http.Get(statsUrl.String())
+	if err != nil {
+		ttyc.Trace()
+		ttyc.TtycAngryPrintf("Failed to get stats: %v\n", err)
+		return
+	}
+	res, err = utils.EnsureAuth(res, s.credentials, nil)
+	if err != nil {
+		ttyc.Trace()
+		ttyc.TtycAngryPrintf("Failed to get stats: %v\n", err)
+		return
+	}
+	buf, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		ttyc.Trace()
+		ttyc.TtycAngryPrintf("Failed to get stats: %v\n", err)
+		return
+	}
+	stats := StatsDTO{}
+	err = json.Unmarshal(buf, &stats)
+	if err != nil {
+		ttyc.Trace()
+		ttyc.TtycAngryPrintf("Failed to get stats: %v\n", err)
+		return
+	}
+	ttyc.TtycPrintf("Statistics:\n")
+	ttyc.TtycPrintf(" Sent %d bytes, received %d bytes, tx %d bps, rx %d bps\n", stats.Tx, stats.Rx, stats.TxRate, stats.RxRate)
+}
+
 func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte {
 	switch command {
 	case QuitChar:
@@ -171,13 +212,23 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 	case HelpChar:
 		println("")
 		ttyc.TtycPrintf("Key commands:\n")
+		cmdsHelpOrder := make([]int, len(cmdsInfo))
+		i := 0
+		for key := range cmdsInfo {
+			cmdsHelpOrder[i] = int(key)
+			i++
+		}
+		sort.Ints(cmdsHelpOrder)
+
 		for _, key := range cmdsHelpOrder {
-			info := cmdsInfo[key]
+			info := cmdsInfo[byte(key)]
 			if s.implementation != ttyc.ImplementationWiSe && info.NonStandard {
 				continue
 			}
 			ttyc.TtycPrintf(" ctrl-t %c   %s\n", key, info.HelpText)
 		}
+	case StatsChar:
+		s.printStats()
 	case VersionChar:
 		println()
 		ttyc.TtycPrintf("ttyc %s\n", ttyc.VERSION)
