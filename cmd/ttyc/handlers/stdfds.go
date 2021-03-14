@@ -31,6 +31,8 @@ const (
 	CtrlTChar      byte = 't'
 	VersionChar    byte = 'v'
 	StatsChar      byte = 's'
+	LocalEchoChar  byte = 'e'
+	HexModeChar    byte = 'h'
 )
 
 type StatsDTO struct {
@@ -47,12 +49,14 @@ type cmdInfo struct {
 
 var cmdsInfo = map[byte]cmdInfo{
 	// Available for all implementations
-	QuitChar:    {"Quit", false},
-	ClearChar:   {"Clear screen", false},
-	CtrlTChar:   {"Send ctrl-t key code", false},
-	HelpChar:    {"List available key commands", false},
-	ConfigChar:  {"Show configuration", false},
-	VersionChar: {"Show version", false},
+	QuitChar:      {"Quit", false},
+	ClearChar:     {"Clear screen", false},
+	CtrlTChar:     {"Send ctrl-t key code", false},
+	HelpChar:      {"List available key commands", false},
+	ConfigChar:    {"Show configuration", false},
+	VersionChar:   {"Show version", false},
+	LocalEchoChar: {"Toggle local echo mode", false},
+	HexModeChar:   {"Toggle hexadecimal mode", false},
 	// Available on Wi-Se server only
 	BreakChar:      {"Send break", true},
 	DetectBaudChar: {"Request baudrate detection", true},
@@ -66,6 +70,8 @@ type stdfdsHandler struct {
 	credentials      *url.Userinfo
 	server           string
 	expectingCommand bool
+	localEchoMode    bool
+	hexMode          bool
 }
 
 func NewStdFdsHandler(client *ws.Client, implementation ttyc.Implementation, credentials *url.Userinfo, server string) (tty TtyHandler, err error) {
@@ -76,6 +82,8 @@ func NewStdFdsHandler(client *ws.Client, implementation ttyc.Implementation, cre
 		server:           server,
 		console:          nil,
 		expectingCommand: false,
+		localEchoMode:    false,
+		hexMode:          false,
 	}
 	return
 }
@@ -141,8 +149,17 @@ func (s *stdfdsHandler) handleStdin(closeChan <-chan interface{}, inChan <-chan 
 			replacement := s.handleCommand(command, errChan)
 			input = bytes.Join([][]byte{before, after}, replacement)
 		}
-
 		// More than one escape char? I hope you're happy with your life.
+
+		if s.localEchoMode {
+			for _, char := range input {
+				// If character is printable
+				if (char >= 32 && char <= 126) || char == '\r' || char == '\n' {
+					_, _ = os.Stdout.Write([]byte{char})
+				}
+			}
+			_ = os.Stdout.Sync()
+		}
 
 		outChan <- input
 	}
@@ -226,6 +243,10 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 	case CtrlTChar:
 		// Put back escape char into buffer
 		return []byte{EscapeChar}
+	case LocalEchoChar:
+		s.localEchoMode = !s.localEchoMode
+	case HexModeChar:
+		s.hexMode = !s.hexMode
 	case HelpChar:
 		println("")
 		s.rawTtyPrintfLn(false, "Key commands:")
@@ -254,6 +275,42 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 	return []byte{}
 }
 
+func BufferToHex(inBuf []byte) (outBuf []byte) {
+	outBuf = []byte{}
+	for _, value := range inBuf {
+		if value == '\n' || value == '\r' {
+			outBuf = append(outBuf, value)
+		} else {
+			byteStr := fmt.Sprintf("%02x ", value)
+			outBuf = append(outBuf, []byte(byteStr)...)
+		}
+	}
+	return
+}
+
+func (s *stdfdsHandler) printOutput(errChan chan<- error) {
+	for {
+		select {
+		case <-s.client.CloseChan:
+			return
+		case buf := <-s.client.Output:
+			if s.hexMode {
+				buf = BufferToHex(buf)
+			}
+			written := 0
+			for written < len(buf) {
+				bWritten, err := os.Stdout.Write(buf[written:])
+				if err != nil {
+					errChan <- err
+					return
+				}
+				written += bWritten
+			}
+			_ = os.Stdout.Sync()
+		}
+	}
+}
+
 func (s *stdfdsHandler) Run(errChan chan<- error) {
 	if err := s.HandleReconnect(); err != nil {
 		errChan <- err
@@ -263,7 +320,7 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 	cmdHandlingChan := make(chan []byte, 1)
 	go utils.CopyReaderToChan(s.client.CloseChan, os.Stdin, cmdHandlingChan, errChan)
 	go s.handleStdin(s.client.CloseChan, cmdHandlingChan, s.client.Input, errChan)
-	go utils.CopyChanToWriter(s.client.CloseChan, s.client.Output, os.Stdout, errChan)
+	go s.printOutput(errChan)
 
 	winch := make(chan os.Signal)
 	defer close(winch)
