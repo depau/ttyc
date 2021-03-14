@@ -192,6 +192,7 @@ func main() {
 			ttyc.TtycAngryPrintf("Unable to launch console handler: %v\n", err)
 			os.Exit(1)
 		}
+		ttyc.TtycPrintf("ttyc %s\n", ttyc.VERSION)
 		ttyc.TtycPrintf("Press ctrl-t q to quit, ctrl-t ? for help\n")
 		ttyc.TtycPrintf("Connected\n")
 	} else {

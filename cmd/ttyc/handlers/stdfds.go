@@ -25,6 +25,7 @@ const (
 	DetectBaudChar byte = 'B'
 	ClearChar      byte = 'l'
 	CtrlTChar      byte = 't'
+	VersionChar    byte = 'v'
 )
 
 type cmdInfo struct {
@@ -32,14 +33,15 @@ type cmdInfo struct {
 	NonStandard bool
 }
 
-var cmdsHelpOrder = []byte{HelpChar, BreakChar, ConfigChar, ClearChar, QuitChar, CtrlTChar, DetectBaudChar}
+var cmdsHelpOrder = []byte{HelpChar, BreakChar, ConfigChar, ClearChar, QuitChar, CtrlTChar, DetectBaudChar, VersionChar}
 var cmdsInfo = map[byte]cmdInfo{
 	// Available for all implementations
-	QuitChar:   {"Quit", false},
-	ClearChar:  {"Clear screen", false},
-	CtrlTChar:  {"Send ctrl-t key code", false},
-	HelpChar:   {"List available key commands", false},
-	ConfigChar: {"Show configuration", false},
+	QuitChar:    {"Quit", false},
+	ClearChar:   {"Clear screen", false},
+	CtrlTChar:   {"Send ctrl-t key code", false},
+	HelpChar:    {"List available key commands", false},
+	ConfigChar:  {"Show configuration", false},
+	VersionChar: {"Show version", false},
 	// Available on Wi-Se server only
 	BreakChar:      {"Send break", true},
 	DetectBaudChar: {"Request baudrate detection", true},
@@ -175,6 +177,9 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 			}
 			ttyc.TtycPrintf(" ctrl-t %c   %s\n", key, info.HelpText)
 		}
+	case VersionChar:
+		println()
+		ttyc.TtycPrintf("ttyc %s\n", ttyc.VERSION)
 	}
 
 	return []byte{}
