@@ -45,6 +45,7 @@ const (
 )
 
 type Client struct {
+	BaseUrl          *url.URL
 	WsClient         *websocket.Conn
 	HttpResp         *http.Response
 	WinTitle         <-chan []byte
@@ -75,7 +76,7 @@ type Client struct {
 type TtyClientOps interface {
 	io.Closer
 
-	Redial(wsUrl *url.URL, token *string) error
+	Redial(token *string) error
 	Run()
 	ResizeTerminal(cols int, rows int)
 	RequestBaudrateDetect()
@@ -85,8 +86,9 @@ type TtyClientOps interface {
 	SoftClose() error
 }
 
-func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
+func DialAndAuth(baseUrl *url.URL, token *string) (client *Client, err error) {
 	client = &Client{
+		BaseUrl:            baseUrl,
 		winTitle:           make(chan []byte),
 		output:             make(chan []byte),
 		input:              make(chan []byte),
@@ -100,7 +102,7 @@ func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
 		isShutdown:         true,
 		closed:             false,
 	}
-	if err := client.Redial(wsUrl, token); err != nil {
+	if err := client.Redial(token); err != nil {
 		return nil, err
 	}
 	client.CloseChan = client.closeChan
@@ -112,7 +114,7 @@ func DialAndAuth(wsUrl *url.URL, token *string) (client *Client, err error) {
 	return
 }
 
-func (c *Client) Redial(wsUrl *url.URL, token *string) error {
+func (c *Client) Redial(token *string) error {
 	if c.closed {
 		return fmt.Errorf("not allowed to redial on closed client")
 	}
@@ -122,6 +124,7 @@ func (c *Client) Redial(wsUrl *url.URL, token *string) error {
 		Proxy:            http.ProxyFromEnvironment,
 		HandshakeTimeout: 45 * time.Second,
 	}
+	wsUrl := ttyc.GetUrlFor(ttyc.UrlForWebSocket, c.BaseUrl)
 	wsClient, resp, err := dialer.Dial(wsUrl.String(), nil)
 	if err != nil {
 		ttyc.Trace()

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 )
@@ -46,6 +47,40 @@ type sttyInDTO struct {
 	Databits uint8 `json:"bits"`
 	Stopbits uint8 `json:"stop"`
 	Parity   *int  `json:"parity"`
+}
+
+const (
+	UrlForToken = iota
+	UrlForWebSocket
+	UrlForStty
+	UrlForStats
+	UrlForWhoami
+)
+
+func GetUrlFor(urlFor int, baseURL *url.URL) (outUrl *url.URL) {
+	outUrl, _ = url.Parse(baseURL.String())
+
+	switch urlFor {
+	case UrlForToken:
+		outUrl.Path = path.Join(baseURL.Path, "token")
+	case UrlForStty:
+		outUrl.Path = path.Join(baseURL.Path, "stty")
+	case UrlForStats:
+		outUrl.Path = path.Join(baseURL.Path, "stats")
+	case UrlForWhoami:
+		outUrl.Path = path.Join(baseURL.Path, "whoami")
+	case UrlForWebSocket:
+		if baseURL.Scheme == "https" {
+			outUrl.Scheme = "wss"
+		} else {
+			outUrl.Scheme = "ws"
+		}
+		outUrl.Path = path.Join(baseURL.Path, "ws")
+	default:
+		panic("invalid urlfor\n")
+	}
+
+	return
 }
 
 func Handshake(url *url.URL, credentials *url.Userinfo) (token string, impl Implementation, server string, err error) {
