@@ -80,6 +80,23 @@ func NewStdFdsHandler(client *ws.Client, implementation ttyc.Implementation, cre
 	return
 }
 
+func (s *stdfdsHandler) rawTtyPrintfLn(angry bool, format string, args ...interface{}) {
+	var newLineFile *os.File
+	if angry {
+		ttyc.TtycAngryPrintf(format, args...)
+		newLineFile = os.Stderr
+	} else {
+		ttyc.TtycPrintf(format, args...)
+		newLineFile = os.Stdout
+	}
+	if s.console == nil {
+		_, _ = newLineFile.WriteString("\n")
+	} else {
+		_, _ = newLineFile.WriteString("\r\n")
+	}
+	_ = newLineFile.Sync()
+}
+
 func (s *stdfdsHandler) handleStdin(closeChan <-chan interface{}, inChan <-chan []byte, outChan chan<- []byte, errChan chan<- error) {
 	for {
 		var input []byte
@@ -136,30 +153,30 @@ func (s *stdfdsHandler) printStats() {
 	res, err := http.Get(statsUrl.String())
 	if err != nil {
 		ttyc.Trace()
-		ttyc.TtycAngryPrintf("Failed to get stats: %v\n", err)
+		s.rawTtyPrintfLn(true, "Failed to get stats: %v", err)
 		return
 	}
 	res, err = utils.EnsureAuth(res, s.credentials, nil)
 	if err != nil {
 		ttyc.Trace()
-		ttyc.TtycAngryPrintf("Failed to get stats: %v\n", err)
+		s.rawTtyPrintfLn(true, "Failed to get stats: %v", err)
 		return
 	}
 	buf, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		ttyc.Trace()
-		ttyc.TtycAngryPrintf("Failed to get stats: %v\n", err)
+		s.rawTtyPrintfLn(true, "Failed to get stats: %v", err)
 		return
 	}
 	stats := StatsDTO{}
 	err = json.Unmarshal(buf, &stats)
 	if err != nil {
 		ttyc.Trace()
-		ttyc.TtycAngryPrintf("Failed to get stats: %v\n", err)
+		s.rawTtyPrintfLn(true, "Failed to get stats: %v", err)
 		return
 	}
-	ttyc.TtycPrintf("Statistics:\n")
-	ttyc.TtycPrintf(" Sent %d bytes, received %d bytes, tx %d bps, rx %d bps\n", stats.Tx, stats.Rx, stats.TxRate, stats.RxRate)
+	s.rawTtyPrintfLn(false, "Statistics:")
+	s.rawTtyPrintfLn(false, " Sent %d bytes, received %d bytes, tx %d bps, rx %d bps", stats.Tx, stats.Rx, stats.TxRate, stats.RxRate)
 }
 
 func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte {
@@ -169,36 +186,36 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 		errChan <- fmt.Errorf("quitting")
 	case ConfigChar:
 		println("")
-		ttyc.TtycPrintf("Configuration:\n")
+		s.rawTtyPrintfLn(false, "Configuration:")
 		additionalServerInfo := ""
 		if s.server != "" {
 			additionalServerInfo = fmt.Sprintf(" (%s)", s.server)
 		}
-		ttyc.TtycPrintf(" Remote server: %s%s\n", s.client.WsClient.RemoteAddr().String(), additionalServerInfo)
+		s.rawTtyPrintfLn(false, " Remote server: %s%s", s.client.WsClient.RemoteAddr().String(), additionalServerInfo)
 		if s.implementation == ttyc.ImplementationWiSe {
 			sttyUrl := ttyc.GetUrlFor(ttyc.UrlForStty, s.client.BaseUrl)
 			ttyConf, err := ttyc.GetStty(sttyUrl, s.credentials)
 			if err == nil {
-				ttyc.TtycPrintf(" Baudrate: %d\n", *ttyConf.Baudrate)
-				ttyc.TtycPrintf(" Databits: %d\n", *ttyConf.Databits)
-				ttyc.TtycPrintf(" Flow: soft\n")
-				ttyc.TtycPrintf(" Stopbits: %d\n", *ttyConf.Stopbits)
+				s.rawTtyPrintfLn(false, " Baudrate: %d", *ttyConf.Baudrate)
+				s.rawTtyPrintfLn(false, " Databits: %d", *ttyConf.Databits)
+				s.rawTtyPrintfLn(false, " Flow: soft")
+				s.rawTtyPrintfLn(false, " Stopbits: %d", *ttyConf.Stopbits)
 				if ttyConf.Parity == nil {
-					ttyc.TtycPrintf(" Parity: none\n")
+					s.rawTtyPrintfLn(false, " Parity: none")
 				} else {
-					ttyc.TtycPrintf(" Parity: %s\n", *ttyConf.Parity)
+					s.rawTtyPrintfLn(false, " Parity: %s", *ttyConf.Parity)
 				}
 			} else {
-				ttyc.TtycPrintf("Failed to retrieve remote terminal configuration: %v\n", err)
+				s.rawTtyPrintfLn(false, "Failed to retrieve remote terminal configuration: %v", err)
 			}
 		}
 	case DetectBaudChar:
 		println("")
 		if s.implementation == ttyc.ImplementationWiSe {
-			ttyc.TtycPrintf("Requesting baud rate detection (it may take up to 10 seconds)\n")
+			s.rawTtyPrintfLn(false, "Requesting baud rate detection (it may take up to 10 seconds)")
 			s.client.RequestBaudrateDetection()
 		} else {
-			ttyc.TtycAngryPrintf("Baud rate detection is only available for Wi-Se")
+			s.rawTtyPrintfLn(true, "Baud rate detection is only available for Wi-Se")
 		}
 	case BreakChar:
 		s.client.SendBreak()
@@ -211,7 +228,7 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 		return []byte{EscapeChar}
 	case HelpChar:
 		println("")
-		ttyc.TtycPrintf("Key commands:\n")
+		s.rawTtyPrintfLn(false, "Key commands:")
 		cmdsHelpOrder := make([]int, len(cmdsInfo))
 		i := 0
 		for key := range cmdsInfo {
@@ -225,13 +242,13 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 			if s.implementation != ttyc.ImplementationWiSe && info.NonStandard {
 				continue
 			}
-			ttyc.TtycPrintf(" ctrl-t %c   %s\n", key, info.HelpText)
+			s.rawTtyPrintfLn(false, " ctrl-t %c   %s", key, info.HelpText)
 		}
 	case StatsChar:
 		s.printStats()
 	case VersionChar:
 		println()
-		ttyc.TtycPrintf("ttyc %s\n", ttyc.VERSION)
+		s.rawTtyPrintfLn(false, "ttyc %s", ttyc.VERSION)
 	}
 
 	return []byte{}
@@ -253,13 +270,10 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 	signal.Notify(winch, syscall.SIGWINCH)
 
 	for {
-		//println("SELECT stdfds Run")
 		select {
 		case <-s.client.CloseChan:
-			//println("SELECTED stdfds Run")
 			return
 		case <-winch:
-			//println("SELECTED stdfds Run winch")
 			if winSize, err := (*s.console).Size(); err != nil {
 				ttyc.Trace()
 				errChan <- err
@@ -268,18 +282,18 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 				s.client.ResizeTerminal(int(winSize.Width), int(winSize.Height))
 			}
 		case title := <-s.client.WinTitle:
-			ttyc.TtycPrintf("Title: %s\n", title)
+			s.rawTtyPrintfLn(false, "Title: %s", title)
 		case baudResult := <-s.client.DetectedBaudrate:
 			approx := baudResult[0]
 			measured := baudResult[1]
 			if approx <= 0 {
-				ttyc.TtycAngryPrintf("Baudrate detection was not successful (detection only works while input is received)\n")
+				s.rawTtyPrintfLn(true, "Baudrate detection was not successful (detection only works while input is received)")
 				break
 			}
 			if measured > 0 {
-				ttyc.TtycPrintf("Detected baudrate: likely %d bps (measured %d bps)\n", approx, measured)
+				s.rawTtyPrintfLn(false, "Detected baudrate: likely %d bps (measured %d bps)", approx, measured)
 			} else {
-				ttyc.TtycPrintf("Detected baudrate: likely %d bps\n", approx)
+				s.rawTtyPrintfLn(false, "Detected baudrate: likely %d bps", approx)
 			}
 		}
 	}
