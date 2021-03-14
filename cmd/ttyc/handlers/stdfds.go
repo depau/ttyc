@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"sort"
 	"syscall"
+	"time"
 )
 
 // Tio-style (https://tio.github.io) console handler
@@ -33,6 +34,7 @@ const (
 	StatsChar      byte = 's'
 	LocalEchoChar  byte = 'e'
 	HexModeChar    byte = 'h'
+	TimestampsChar byte = 'T'
 )
 
 type StatsDTO struct {
@@ -49,14 +51,15 @@ type cmdInfo struct {
 
 var cmdsInfo = map[byte]cmdInfo{
 	// Available for all implementations
-	QuitChar:      {"Quit", false},
-	ClearChar:     {"Clear screen", false},
-	CtrlTChar:     {"Send ctrl-t key code", false},
-	HelpChar:      {"List available key commands", false},
-	ConfigChar:    {"Show configuration", false},
-	VersionChar:   {"Show version", false},
-	LocalEchoChar: {"Toggle local echo mode", false},
-	HexModeChar:   {"Toggle hexadecimal mode", false},
+	QuitChar:       {"Quit", false},
+	ClearChar:      {"Clear screen", false},
+	CtrlTChar:      {"Send ctrl-t key code", false},
+	HelpChar:       {"List available key commands", false},
+	ConfigChar:     {"Show configuration", false},
+	VersionChar:    {"Show version", false},
+	LocalEchoChar:  {"Toggle local echo mode", false},
+	HexModeChar:    {"Toggle hexadecimal mode", false},
+	TimestampsChar: {"Toggle timestamps", false},
 	// Available on Wi-Se server only
 	BreakChar:      {"Send break", true},
 	DetectBaudChar: {"Request baudrate detection", true},
@@ -72,6 +75,8 @@ type stdfdsHandler struct {
 	expectingCommand bool
 	localEchoMode    bool
 	hexMode          bool
+	showTimestamps   bool
+	nextIsTimestamp  bool
 }
 
 func NewStdFdsHandler(client *ws.Client, implementation ttyc.Implementation, credentials *url.Userinfo, server string) (tty TtyHandler, err error) {
@@ -84,6 +89,8 @@ func NewStdFdsHandler(client *ws.Client, implementation ttyc.Implementation, cre
 		expectingCommand: false,
 		localEchoMode:    false,
 		hexMode:          false,
+		showTimestamps:   false,
+		nextIsTimestamp:  false,
 	}
 	return
 }
@@ -247,6 +254,9 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 		s.localEchoMode = !s.localEchoMode
 	case HexModeChar:
 		s.hexMode = !s.hexMode
+	case TimestampsChar:
+		s.showTimestamps = !s.showTimestamps
+		s.nextIsTimestamp = s.showTimestamps
 	case HelpChar:
 		println("")
 		s.rawTtyPrintfLn(false, "Key commands:")
@@ -275,7 +285,7 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 	return []byte{}
 }
 
-func BufferToHex(inBuf []byte) (outBuf []byte) {
+func bufferToHex(inBuf []byte) (outBuf []byte) {
 	outBuf = []byte{}
 	for _, value := range inBuf {
 		if value == '\n' || value == '\r' {
@@ -288,6 +298,26 @@ func BufferToHex(inBuf []byte) (outBuf []byte) {
 	return
 }
 
+func (s *stdfdsHandler) injectTimestamps(inBuf []byte) (outBuf []byte) {
+	outBuf = inBuf
+	tstamp := []byte(fmt.Sprintf("\u001B[1;30m[%s]\u001B[0m ", ttyc.Strftime.FormatString(time.Now())))
+	if s.nextIsTimestamp {
+		outBuf = append(tstamp, outBuf...)
+		s.nextIsTimestamp = false
+	}
+	i := 0
+	for i < len(outBuf) {
+		if outBuf[i] == '\n' && i != len(outBuf)-1 {
+			tmp := append(outBuf[:i+1], tstamp...)
+			outBuf = append(tmp, outBuf[i+1:]...)
+		} else if outBuf[i] == '\n' {
+			s.nextIsTimestamp = true
+		}
+		i++
+	}
+	return
+}
+
 func (s *stdfdsHandler) printOutput(errChan chan<- error) {
 	for {
 		select {
@@ -295,7 +325,10 @@ func (s *stdfdsHandler) printOutput(errChan chan<- error) {
 			return
 		case buf := <-s.client.Output:
 			if s.hexMode {
-				buf = BufferToHex(buf)
+				buf = bufferToHex(buf)
+			}
+			if s.showTimestamps {
+				buf = s.injectTimestamps(buf)
 			}
 			written := 0
 			for written < len(buf) {

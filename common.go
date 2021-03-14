@@ -22,7 +22,7 @@ const COPYRIGHT = "Copyright (c) 2021 Davide Depau\n\n" +
 	"This is free software; see the source for copying conditions.  There is NO\n" +
 	"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
 
-var strftime, _ = strftimeMod.New("%H:%M:%S")
+var Strftime, _ = strftimeMod.New("%H:%M:%S")
 
 type TokenDTO struct {
 	Token string `json:"token"`
@@ -211,14 +211,14 @@ func Stty(url *url.URL, credentials *url.Userinfo, dto *SttyDTO) error {
 
 func TtycErrFprintf(w io.Writer, format string, a ...interface{}) {
 	// Ignore fprintf errors here since I wasn't planning to care anywhere else regardless
-	_, _ = fmt.Fprintf(w, "\u001B[31m[ttyc %s] ", strftime.FormatString(time.Now()))
+	_, _ = fmt.Fprintf(w, "\u001B[31m[ttyc %s] ", Strftime.FormatString(time.Now()))
 	_, _ = fmt.Fprintf(w, format, a...)
 	_, _ = fmt.Fprint(w, "\u001b[0m")
 }
 
 func TtycFprintf(w io.Writer, format string, a ...interface{}) {
 	// Ignore fprintf errors here since I wasn't planning to care anywhere else regardless
-	_, _ = fmt.Fprintf(w, "\u001B[33;1m[ttyc %s] ", strftime.FormatString(time.Now()))
+	_, _ = fmt.Fprintf(w, "\u001B[33;1m[ttyc %s] ", Strftime.FormatString(time.Now()))
 	_, _ = fmt.Fprintf(w, format, a...)
 	_, _ = fmt.Fprint(w, "\u001b[0m")
 }
