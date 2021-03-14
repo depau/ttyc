@@ -36,15 +36,11 @@ ttyc --host localhost --port 7681
 
 ```
   -h, --help                Show help
-  -H, --host               *Server hostname
-  -P, --port               *Server port
-  -t, --tls[=false]         Use TLS
-  -w, --watchdog[=10]       WebSocket ping interval in seconds, 0 to disable, default 10.
-  -r, --reconnect[=3]       Reconnection interval in seconds, -1 to disable, default 3.
-      --backoff[=linear]    Backoff type, none, linear, exponential, defaults to linear
-      --backoff-value[=2]   For linear backoff, increase reconnect interval by this amount of seconds
-                            after each iteration. For exponential backoff, multiply reconnect interval
-                            by this amount. Default 2,
+  -U, --url                 Server URL
+  -w, --watchdog[=2]        WebSocket ping interval in seconds, 0 to disable, default 2.
+  -r, --reconnect[=2]       Reconnection interval in seconds, -1 to disable, default 3.
+      --backoff[=none]      Backoff type, none, linear, exponential, defaults to linear
+      --backoff-value[=2]   For linear backoff, increase reconnect interval by this amount of seconds after each iteration. For exponential backoff, multiply reconnect interval by this amount. Default 2
   -u, --user                Username for authentication
   -k, --pass                Password for authentication
   -T, --tty                 Do not launch terminal, create terminal device at given location (i.e. /tmp/ttyd)
@@ -52,6 +48,7 @@ ttyc --host localhost --port 7681
   -p, --parity              (Wi-Se only) Set remote parity [odd|even|none]
   -d, --databits[=-1]       (Wi-Se only) Set remote data bits [5|6|7|8]
   -s, --stopbits[=-1]       (Wi-Se only) Set remote stop bits [1|2]
+  -v, --version             Show version
 ```
 
 ## License
