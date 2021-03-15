@@ -210,6 +210,9 @@ func main() {
 	for {
 		select {
 		case fatalError = <-handlerErrChan:
+			if err := handler.HandleDisconnect(); err != nil {
+				ttyc.TtycAngryPrintf("Error while handling disconnection: %v\n", err)
+			}
 			ttyc.TtycAngryPrintf("%v\n", fatalError)
 			return
 		case fatalError = <-client.Error:
