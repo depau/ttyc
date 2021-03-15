@@ -408,6 +408,7 @@ func (s *stdfdsHandler) HandleDisconnect() error {
 			return err
 		}
 		s.console = nil
+		print("\r")
 	}
 	return nil
 }
