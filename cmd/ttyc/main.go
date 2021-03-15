@@ -77,17 +77,25 @@ func stty(config *Config, sttyUrl *url.URL, credentials *url.Userinfo) error {
 	baud := uint(config.Baud)
 	bits := uint8(config.Databits)
 	stop := uint8(config.Stopbits)
+	paramsToUpdate := 0
 	if config.Baud > 0 {
 		dto.Baudrate = &baud
+		paramsToUpdate++
 	}
 	if config.Databits > 0 {
 		dto.Databits = &bits
+		paramsToUpdate++
 	}
 	if config.Stopbits > 0 {
 		dto.Stopbits = &stop
+		paramsToUpdate++
 	}
 	if config.Parity != "" {
 		dto.Parity = &config.Parity
+		paramsToUpdate++
+	}
+	if paramsToUpdate == 0 {
+		return nil
 	}
 
 	err := ttyc.Stty(sttyUrl, credentials, &dto)
