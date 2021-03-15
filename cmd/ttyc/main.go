@@ -98,7 +98,7 @@ func stty(config *Config, sttyUrl *url.URL, credentials *url.Userinfo) error {
 		return nil
 	}
 
-	err := ttyc.Stty(sttyUrl, credentials, &dto)
+	_, err := ttyc.Stty(sttyUrl, credentials, &dto)
 	if err != nil {
 		ttyc.Trace()
 		return err

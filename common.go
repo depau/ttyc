@@ -36,10 +36,10 @@ const (
 )
 
 type SttyDTO struct {
-	Baudrate *uint
-	Databits *uint8
-	Stopbits *uint8
-	Parity   *string
+	Baudrate *uint   `json:"baudrate"`
+	Databits *uint8  `json:"databits"`
+	Stopbits *uint8  `json:"stopbits"`
+	Parity   *string `json:"parity"`
 }
 
 type sttyInDTO struct {
@@ -120,28 +120,9 @@ func Handshake(url *url.URL, credentials *url.Userinfo) (token string, impl Impl
 	return
 }
 
-func GetStty(url *url.URL, credentials *url.Userinfo) (stty SttyDTO, err error) {
-	httpClient := http.Client{
-		Timeout: 3 * time.Second,
-	}
-	resp, err := httpClient.Get(url.String())
-	if err != nil {
-		Trace()
-		return
-	}
-	resp, err = utils.EnsureAuth(resp, credentials, nil)
-	if err != nil {
-		Trace()
-		return
-	}
-
-	buf, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		Trace()
-		return
-	}
+func parseStty(body []byte) (stty SttyDTO, err error) {
 	sttyIn := sttyInDTO{}
-	err = json.Unmarshal(buf, &sttyIn)
+	err = json.Unmarshal(body, &sttyIn)
 	if err != nil {
 		Trace()
 		return
@@ -166,7 +147,31 @@ func GetStty(url *url.URL, credentials *url.Userinfo) (stty SttyDTO, err error) 
 	return
 }
 
-func Stty(url *url.URL, credentials *url.Userinfo, dto *SttyDTO) error {
+func GetStty(url *url.URL, credentials *url.Userinfo) (stty SttyDTO, err error) {
+	httpClient := http.Client{
+		Timeout: 3 * time.Second,
+	}
+	resp, err := httpClient.Get(url.String())
+	if err != nil {
+		Trace()
+		return
+	}
+	resp, err = utils.EnsureAuth(resp, credentials, nil)
+	if err != nil {
+		Trace()
+		return
+	}
+
+	buf, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		Trace()
+		return
+	}
+	stty, err = parseStty(buf)
+	return
+}
+
+func Stty(url *url.URL, credentials *url.Userinfo, dto *SttyDTO) (stty SttyDTO, err error) {
 	// Generate json manually since golang can't generate it properly
 	var jsonItems []string
 	if dto.Baudrate != nil {
@@ -195,18 +200,24 @@ func Stty(url *url.URL, credentials *url.Userinfo, dto *SttyDTO) error {
 	resp, err := http.Post(url.String(), "application/json", bytes.NewBuffer([]byte(sb.String())))
 	if err != nil {
 		Trace()
-		return err
+		return
 	}
 	resp, err = utils.EnsureAuth(resp, credentials, bytes.NewBuffer([]byte(sb.String())))
 	if err != nil {
 		Trace()
-		return err
+		return
 	}
-
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("HTTP status %d", resp.StatusCode)
+		err = fmt.Errorf("HTTP status %d", resp.StatusCode)
+		return
 	}
-	return nil
+	buf, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		Trace()
+		return
+	}
+	stty, err = parseStty(buf)
+	return
 }
 
 func TtycErrFprintf(w io.Writer, format string, a ...interface{}) {
