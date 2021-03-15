@@ -256,7 +256,7 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 		s.hexMode = !s.hexMode
 	case TimestampsChar:
 		s.showTimestamps = !s.showTimestamps
-		s.nextIsTimestamp = s.showTimestamps
+		s.nextIsTimestamp = false
 	case HelpChar:
 		println("")
 		s.rawTtyPrintfLn(false, "Key commands:")
@@ -311,16 +311,18 @@ func bufferToHex(inBuf []byte) (outBuf []byte) {
 func (s *stdfdsHandler) injectTimestamps(inBuf []byte) (outBuf []byte) {
 	outBuf = inBuf
 	tstamp := []byte(fmt.Sprintf("\u001B[1;30m[%s]\u001B[0m ", ttyc.Strftime.FormatString(time.Now())))
-	if s.nextIsTimestamp {
-		outBuf = append(tstamp, outBuf...)
-		s.nextIsTimestamp = false
-	}
+
 	i := 0
+
 	for i < len(outBuf) {
-		if outBuf[i] == '\n' && i != len(outBuf)-1 {
-			tmp := append(outBuf[:i+1], tstamp...)
-			outBuf = append(tmp, outBuf[i+1:]...)
-		} else if outBuf[i] == '\n' {
+		if s.nextIsTimestamp && i != len(outBuf)-1 {
+			end := append([]byte{}, outBuf[i:]...)
+			outBuf = append(outBuf[:i], tstamp...)
+			outBuf = append(outBuf, end...)
+			i += len(tstamp)
+			s.nextIsTimestamp = false
+		}
+		if outBuf[i] == '\n' {
 			s.nextIsTimestamp = true
 		}
 		i++
