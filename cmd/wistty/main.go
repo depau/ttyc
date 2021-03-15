@@ -94,13 +94,13 @@ func main() {
 
 	ret := cli.Run(&config, func(ctx *cli.Context) error {
 		return nil
-	}, "wistty - Manage Wi-Se remote terminal parameters")
+	}, "wistty (ttyc) - Manage Wi-Se remote terminal parameters")
 
 	if ret != 0 || config.Help {
 		os.Exit(ret)
 	}
 	if config.Version {
-		fmt.Printf("wistty %s\n", ttyc.VERSION)
+		fmt.Printf("wistty (ttyc) %s\n", ttyc.VERSION)
 		println(ttyc.COPYRIGHT)
 
 		os.Exit(0)
