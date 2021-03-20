@@ -16,6 +16,16 @@ Wistty is a utility to set remote terminal parameters for [Wi-Se](https://github
 
 Wistty is not compatible with ttyd.
 
+## Installation
+
+### Arch Linux
+
+Packages are available in the AUR:
+
+- `ttyc` - https://aur.archlinux.org/packages/ttyc/
+- `wistty` - https://aur.archlinux.org/packages/wistty/
+- `ttyc-git` - https://aur.archlinux.org/packages/ttyc-git/ (provides `wistty`)
+
 ## Building
 
 ### Quick way
