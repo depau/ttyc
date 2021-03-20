@@ -10,21 +10,30 @@ Features:
   etc.)
 - Supports configuring remote UART parameters for Wi-Se
 
+## wistty
+
+Wistty is a utility to set remote terminal parameters for [Wi-Se](https://github.com/Depau/wi-se-sw/).
+
+Wistty is not compatible with ttyd.
+
 ## Building
 
 ### Quick way
 
 ```bash
 go get github.com/Depau/ttyc/cmd/ttyc
+go get github.com/Depau/ttyc/cmd/wistty
 ```
 
-Binary will be saved to `$GOHOME/bin/ttyc`, usually `~/go/bin/ttyc`
+Binaries will be saved to `$GOHOME/bin/ttyc` and `$GOHOME/bin/wistty`, usually `~/go/bin/...`
 
 ### From local sources
 
 ```bash
 git clone https://github.com/Depau/ttyc.git
 cd ttyc/cmd/ttyc
+go build
+cd ../wistty
 go build
 ```
 
@@ -49,6 +58,23 @@ ttyc --host localhost --port 7681
   -d, --databits[=-1]       (Wi-Se only) Set remote data bits [5|6|7|8]
   -s, --stopbits[=-1]       (Wi-Se only) Set remote stop bits [1|2]
   -v, --version             Show version
+```
+
+```bash
+wistty (ttyc) - Manage Wi-Se remote terminal parameters
+
+Options:
+
+  -h, --help            Show help
+  -U, --url             Server URL
+  -u, --user            Username for authentication
+  -k, --pass            Password for authentication
+  -j, --json            Return machine-readable JSON output
+  -b, --baudrate[=-1]   Set remote baud rate [bps]
+  -p, --parity          Set remote parity [odd|even|none]
+  -d, --databits[=-1]   Set remote data bits [5|6|7|8]
+  -s, --stopbits[=-1]   Set remote stop bits [1|2]
+  -v, --version         Show version
 ```
 
 ## License
