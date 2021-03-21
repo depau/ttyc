@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const VERSION = "v0.1"
+const VERSION = "v0.2"
 const COPYRIGHT = "Copyright (c) 2021 Davide Depau\n\n" +
 	"License: GNU GPL version 3.0 or later <https://www.gnu.org/licenses/gpl-3.0.html>.\n" +
 	"This is free software; see the source for copying conditions.  There is NO\n" +
