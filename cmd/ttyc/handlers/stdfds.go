@@ -210,12 +210,15 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 		errChan <- fmt.Errorf("quitting")
 	case ConfigChar:
 		println("")
-		//s.rawTtyPrintfLn(false, " Remote server: %s%s", s.client.WsClient.RemoteAddr().String(), additionalServerInfo)
-		//additionalServerInfo := ""
-		//if s.server != "" {
-		//	additionalServerInfo = fmt.Sprintf(" (%s)", s.server)
-		//}
 		s.rawTtyPrintfLn(false, "Configuration:")
+
+		additionalServerInfo := ""
+		if s.server != "" {
+			additionalServerInfo = fmt.Sprintf(" (%s)", s.server)
+		}
+		wsUrl := ttyc.GetUrlFor(ttyc.UrlForWebSocket, s.client.BaseUrl)
+		s.rawTtyPrintfLn(false, " Remote server: %s%s", wsUrl.String(), additionalServerInfo)
+
 		if s.implementation == ttyc.ImplementationWiSe {
 			sttyUrl := ttyc.GetUrlFor(ttyc.UrlForStty, s.client.BaseUrl)
 			ttyConf, err := ttyc.GetStty(sttyUrl, s.credentials)
