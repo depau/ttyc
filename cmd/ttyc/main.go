@@ -173,7 +173,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	client, err := ws.DialAndAuth(baseUrl, &token)
+	client, err := ws.DialAndAuth(baseUrl, &token, config.Watchdog)
 	if err != nil {
 		ttyc.TtycAngryPrintf("unable to connect or authenticate to server: %v\n", err)
 		os.Exit(1)

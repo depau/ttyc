@@ -1,14 +1,14 @@
 package ws
 
-import "C"
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/Depau/ttyc"
-	"github.com/gorilla/websocket"
 	"io"
 	"net/http"
 	"net/url"
+	"nhooyr.io/websocket"
 	"strconv"
 	"strings"
 	"sync"
@@ -55,28 +55,30 @@ type Client struct {
 	Error            <-chan error
 	CloseChan        <-chan interface{}
 
+	mainCtx            context.Context
+	mainCtxCancel      context.CancelFunc
+	wsHttpClient       http.Client
 	winTitle           chan []byte
 	detectedBaudrate   chan [2]int64
 	output             chan []byte
 	input              chan []byte
 	flowControl        sync.Mutex
 	flowControlEngaged bool
-	pong               chan interface{}
 	error              chan error
 
-	wsOperationLock sync.Mutex
-	toWs            chan []byte
-	fromWs          chan []byte
-	shutdown        chan interface{}
-	closeChan       chan interface{}
-	isShutdown      bool
-	closed          bool
+	watchdogInterval int
+	toWs             chan []byte
+	fromWs           chan []byte
+	shutdown         chan interface{}
+	closeChan        chan interface{}
+	isShutdown       bool
+	closed           bool
 }
 
 type TtyClientOps interface {
 	io.Closer
 
-	Redial(token *string) error
+	Redial(token *string, watchdog int) error
 	Run()
 	ResizeTerminal(cols int, rows int)
 	RequestBaudrateDetect()
@@ -86,7 +88,7 @@ type TtyClientOps interface {
 	SoftClose() error
 }
 
-func DialAndAuth(baseUrl *url.URL, token *string) (client *Client, err error) {
+func DialAndAuth(baseUrl *url.URL, token *string, watchdog int) (client *Client, err error) {
 	client = &Client{
 		BaseUrl:            baseUrl,
 		winTitle:           make(chan []byte),
@@ -94,14 +96,16 @@ func DialAndAuth(baseUrl *url.URL, token *string) (client *Client, err error) {
 		input:              make(chan []byte),
 		detectedBaudrate:   make(chan [2]int64),
 		flowControlEngaged: false,
-		pong:               make(chan interface{}),
+		wsHttpClient:       http.Client{},
 		error:              make(chan error),
 		toWs:               make(chan []byte),
 		fromWs:             make(chan []byte),
 		closeChan:          make(chan interface{}),
 		isShutdown:         true,
 		closed:             false,
+		watchdogInterval:   watchdog,
 	}
+	client.mainCtx, client.mainCtxCancel = context.WithCancel(context.Background())
 	if err := client.Redial(token); err != nil {
 		return nil, err
 	}
@@ -114,18 +118,31 @@ func DialAndAuth(baseUrl *url.URL, token *string) (client *Client, err error) {
 	return
 }
 
+func (c *Client) getWriteContext() (context.Context, context.CancelFunc) {
+	if c.watchdogInterval > 0 {
+		return context.WithTimeout(c.mainCtx, time.Duration(c.watchdogInterval)*time.Second)
+	}
+	return c.getReadContext()
+}
+
+func (c *Client) getReadContext() (context.Context, context.CancelFunc) {
+	return context.WithCancel(c.mainCtx)
+}
+
 func (c *Client) Redial(token *string) error {
 	if c.closed {
 		return fmt.Errorf("not allowed to redial on closed client")
 	}
 
-	dialer := websocket.Dialer{
-		Subprotocols:     []string{"tty"},
-		Proxy:            http.ProxyFromEnvironment,
-		HandshakeTimeout: 45 * time.Second,
+	dialOpts := websocket.DialOptions{
+		HTTPClient:   &c.wsHttpClient,
+		Subprotocols: []string{"tty"},
 	}
 	wsUrl := ttyc.GetUrlFor(ttyc.UrlForWebSocket, c.BaseUrl)
-	wsClient, resp, err := dialer.Dial(wsUrl.String(), nil)
+
+	ctx, cancel := c.getWriteContext()
+	wsClient, resp, err := websocket.Dial(ctx, wsUrl.String(), &dialOpts)
+	cancel()
 	if err != nil {
 		ttyc.Trace()
 		return err
@@ -134,9 +151,10 @@ func (c *Client) Redial(token *string) error {
 		AuthToken: *token,
 	}
 	message, _ := json.Marshal(authDTO)
-	c.wsOperationLock.Lock()
-	err = wsClient.WriteMessage(websocket.BinaryMessage, message)
-	c.wsOperationLock.Unlock()
+
+	ctx, cancel = c.getWriteContext()
+	err = wsClient.Write(ctx, websocket.MessageBinary, message)
+	cancel()
 	if err != nil {
 		ttyc.Trace()
 		return err
@@ -153,9 +171,7 @@ func (c *Client) SoftClose() error {
 	if !c.isShutdown {
 		return fmt.Errorf("can only soft-close in order to redial if the client is already shut down")
 	}
-	c.wsOperationLock.Lock()
-	err := c.WsClient.Close()
-	c.wsOperationLock.Unlock()
+	err := c.WsClient.Close(websocket.StatusGoingAway, "")
 	if err != nil {
 		ttyc.Trace()
 		return err
@@ -182,6 +198,9 @@ func (c *Client) Close() error {
 		ttyc.Trace()
 		return err
 	}
+
+	c.mainCtxCancel()
+
 	return nil
 }
 
@@ -204,14 +223,16 @@ func (c *Client) doShutdown(err error) {
 func (c *Client) readLoop() {
 	for !c.closed && !c.isShutdown {
 		//println("BLOCKING readLoop")
-		msgType, data, err := c.WsClient.ReadMessage()
+		ctx, cancel := c.getReadContext()
+		msgType, data, err := c.WsClient.Read(ctx)
+		cancel()
 		//println("Unblocked readLoop")
 		if err != nil {
 			ttyc.Trace()
 			c.doShutdown(err)
 			return
 		}
-		if msgType != websocket.BinaryMessage && msgType != websocket.TextMessage {
+		if msgType != websocket.MessageBinary && msgType != websocket.MessageText {
 			continue
 		}
 		c.fromWs <- data
@@ -297,9 +318,9 @@ func (c *Client) chanLoop() {
 				continue
 			}
 			c.flowControl.Lock()
-			c.wsOperationLock.Lock()
-			err := c.WsClient.WriteMessage(websocket.BinaryMessage, data)
-			c.wsOperationLock.Unlock()
+			ctx, cancel := c.getWriteContext()
+			err := c.WsClient.Write(ctx, websocket.MessageBinary, data)
+			cancel()
 			c.flowControl.Unlock()
 			if err != nil {
 				ttyc.Trace()
@@ -313,9 +334,9 @@ func (c *Client) chanLoop() {
 			// I could avoid duplicating the code but I'd rather avoid the additional copy, since writing to the
 			// WebSocket is this goroutine's job anyway.
 			c.flowControl.Lock()
-			c.wsOperationLock.Lock()
-			err := c.WsClient.WriteMessage(websocket.BinaryMessage, append([]byte{MsgInput}, data...))
-			c.wsOperationLock.Unlock()
+			ctx, cancel := c.getWriteContext()
+			err := c.WsClient.Write(ctx, websocket.MessageBinary, append([]byte{MsgInput}, data...))
+			cancel()
 			c.flowControl.Unlock()
 			if err != nil {
 				ttyc.Trace()
@@ -331,29 +352,20 @@ func (c *Client) chanLoop() {
 
 func (c *Client) watchdog(interval int) {
 	pingDuration := time.Duration(interval) * time.Second
-	timeoutDuration := time.Duration(interval+1) * time.Second
 	nextPing := time.Now().Add(pingDuration)
-	// Give some extra time for the first timeout
-	nextTimeout := time.Now().Add(timeoutDuration + pingDuration)
 
 	for !c.closed && !c.isShutdown {
 		select {
 		case <-time.After(nextPing.Sub(time.Now())):
-			c.wsOperationLock.Lock()
-			err := c.WsClient.WriteMessage(websocket.PingMessage, []byte{})
-			c.wsOperationLock.Unlock()
+			ctx, cancel := c.getWriteContext()
+			err := c.WsClient.Ping(ctx)
+			cancel()
 			if err != nil {
 				ttyc.Trace()
 				c.doShutdown(err)
 				return
 			}
 			nextPing = time.Now().Add(pingDuration)
-		case <-time.After(nextTimeout.Sub(time.Now())):
-			ttyc.Trace()
-			c.doShutdown(fmt.Errorf("server is not responding, closing"))
-			return
-		case <-c.pong:
-			nextTimeout = time.Now().Add(timeoutDuration)
 		case <-c.closeChan:
 		case <-c.shutdown:
 			return
@@ -364,10 +376,6 @@ func (c *Client) watchdog(interval int) {
 func (c *Client) Run(watchdog int) {
 	go c.readLoop()
 	if watchdog > 0 {
-		c.WsClient.SetPongHandler(func(_ string) error {
-			c.pong <- true
-			return nil
-		})
 		go c.watchdog(watchdog)
 	}
 	c.chanLoop()
