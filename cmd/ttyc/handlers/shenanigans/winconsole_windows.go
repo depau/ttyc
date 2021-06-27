@@ -9,7 +9,7 @@ import (
 // We clear the terminal by temporarily forcing escape sequence parsing enabled, sending the escape sequence Windows
 // likes, then put everything back as it was.
 
-func WindowsClearConsole() (err error) {
+func ClearConsole() (err error) {
 	stdout := windows.Handle(os.Stdout.Fd())
 	var outMode uint32
 	if err = windows.GetConsoleMode(stdout, &outMode); err != nil {
