@@ -16,7 +16,7 @@ type PlatformInfo struct {
 	ExtraEnv []string
 }
 
-var CommonPlatforms = []PlatformInfo{
+var Platforms = []PlatformInfo{
 	{"linux", "386", []string{}},
 	{"linux", "amd64", []string{}},
 	{"linux", "arm", []string{}},
@@ -48,9 +48,6 @@ var CommonPlatforms = []PlatformInfo{
 	{"openbsd", "arm", []string{}},
 	{"openbsd", "arm64", []string{}},
 	{"openbsd", "mips64", []string{"GOMIPS=softfloat"}},
-}
-
-var WisttyAdditionalPlatforms = []PlatformInfo{
 	{"windows", "386", []string{}},
 	{"windows", "amd64", []string{}},
 	{"windows", "arm", []string{}},
@@ -105,6 +102,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	BuildExes("ttyc", CommonPlatforms, path+"/build")
-	BuildExes("wistty", append(CommonPlatforms, WisttyAdditionalPlatforms...), path+"/build")
+	BuildExes("ttyc", Platforms, path+"/build")
+	BuildExes("wistty", Platforms, path+"/build")
 }
