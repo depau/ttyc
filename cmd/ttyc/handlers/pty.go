@@ -1,4 +1,8 @@
 // +build !windows
+// +build !darwin
+
+// This module provides PTY emulation. It is only tested on Linux, tested not working on macOS. Windows does not support
+// this at all.
 
 package handlers
 

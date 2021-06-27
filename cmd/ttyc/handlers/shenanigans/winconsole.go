@@ -1,7 +1,8 @@
 // +build !windows
+// +build !darwin
 
 package shenanigans
 
-func WindowsClearConsole() error {
+func ClearConsole() error {
 	return nil
 }

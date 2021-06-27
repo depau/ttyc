@@ -1,3 +1,5 @@
+// +build windows darwin
+
 package main
 
 type Config struct {
@@ -13,7 +15,7 @@ type Config struct {
 	Parity       string `cli:"p,parity" usage:"(Wi-Se only) Set remote parity [odd|even|none]" dft:""`
 	Databits     int    `cli:"d,databits" usage:"(Wi-Se only) Set remote data bits [5|6|7|8]" dft:"-1"`
 	Stopbits     int    `cli:"s,stopbits" usage:"(Wi-Se only) Set remote stop bits [1|2]" dft:"-1"`
-	WaitDebugger bool   `cli:"D,debugger" usage:"(Windows only) Wait on start for a debugger connection" dft:"false"`
+	WaitDebugger bool   `cli:"D,debugger" usage:"Wait on start for a debugger connection" dft:"false"`
 	Version      bool   `cli:"!v,version" usage:"Show version"`
 }
 

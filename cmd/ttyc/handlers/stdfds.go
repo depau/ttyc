@@ -422,7 +422,7 @@ func (s *stdfdsHandler) HandleDisconnect() error {
 		s.console = nil
 		print("\r")
 
-		if err := shenanigans.WindowsClearConsole(); err != nil {
+		if err := shenanigans.ClearConsole(); err != nil {
 			ttyc.Trace()
 			return err
 		}

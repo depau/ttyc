@@ -1,3 +1,7 @@
+// +build windows darwin
+
+// This package provides mock implementations for Windows and macOS since PTY doesn't work
+
 package handlers
 
 import (
