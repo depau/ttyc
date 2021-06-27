@@ -8,6 +8,7 @@ import (
 	"github.com/Depau/ttyc/utils"
 	"github.com/Depau/ttyc/utils/switzerland"
 	"github.com/Depau/ttyc/ws"
+	"github.com/TwinProduction/go-color"
 	"github.com/containerd/console"
 	"io/ioutil"
 	"net/http"
@@ -312,7 +313,7 @@ func bufferToHex(inBuf []byte) (outBuf []byte) {
 
 func (s *stdfdsHandler) injectTimestamps(inBuf []byte) (outBuf []byte) {
 	outBuf = inBuf
-	tstamp := []byte(fmt.Sprintf("\u001B[1;30m[%s]\u001B[0m ", ttyc.Strftime.FormatString(time.Now())))
+	tstamp := []byte(fmt.Sprintf(ttyc.PlatformGray()+"[%s]"+color.Reset+" ", ttyc.Strftime.FormatString(time.Now())))
 
 	i := 0
 
