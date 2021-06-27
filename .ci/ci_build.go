@@ -29,7 +29,7 @@ var CommonPlatforms = []PlatformInfo{
 	{"linux", "ppc64le", []string{}},
 	{"linux", "riscv64", []string{}},
 	{"linux", "s390x", []string{}},
-	{"android", "386", []string{"CGO_ENABLED=0"}},
+	{"android", "386", []string{}},
 	{"android", "amd64", []string{}},
 	//{"android", "arm", []string{}}, // CGO does not work
 	{"android", "arm64", []string{}},
