@@ -8,11 +8,13 @@ import (
 	"github.com/Depau/ttyc/utils"
 	"github.com/Depau/ttyc/utils/switzerland"
 	"github.com/Depau/ttyc/ws"
+	"github.com/TwinProduction/go-color"
 	"github.com/containerd/console"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"sort"
 	"time"
 )
@@ -312,7 +314,7 @@ func bufferToHex(inBuf []byte) (outBuf []byte) {
 
 func (s *stdfdsHandler) injectTimestamps(inBuf []byte) (outBuf []byte) {
 	outBuf = inBuf
-	tstamp := []byte(fmt.Sprintf("\u001B[1;30m[%s]\u001B[0m ", ttyc.Strftime.FormatString(time.Now())))
+	tstamp := []byte(fmt.Sprintf(ttyc.PlatformGray()+"[%s]"+color.Reset+" ", ttyc.Strftime.FormatString(time.Now())))
 
 	i := 0
 
@@ -385,7 +387,12 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 				errChan <- err
 				return
 			} else {
-				s.client.ResizeTerminal(int(winSize.Width), int(winSize.Height))
+				height := int(winSize.Height)
+				// Windows seems to include the row below the bottom scrollbar
+				if runtime.GOOS == "windows" {
+					height -= 1
+				}
+				s.client.ResizeTerminal(int(winSize.Width), height)
 			}
 		case title := <-s.client.WinTitle:
 			s.rawTtyPrintfLn(false, "Title: %s", title)

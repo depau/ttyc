@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Depau/ttyc/utils"
+	"github.com/TwinProduction/go-color"
 	strftimeMod "github.com/lestrrat-go/strftime"
 	"io"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -220,18 +222,32 @@ func Stty(url *url.URL, credentials *url.Userinfo, dto *SttyDTO) (stty SttyDTO, 
 	return
 }
 
+func PlatformGray() string {
+	if runtime.GOOS == "windows" {
+		return color.Gray
+	}
+	return "\u001B[1;30m"
+}
+
+func PlatformYellow() string {
+	if runtime.GOOS == "windows" {
+		return color.Yellow
+	}
+	return "\u001B[31m"
+}
+
 func TtycErrFprintf(w io.Writer, format string, a ...interface{}) {
 	// Ignore fprintf errors here since I wasn't planning to care anywhere else regardless
-	_, _ = fmt.Fprintf(w, "\u001B[31m[ttyc %s] ", Strftime.FormatString(time.Now()))
+	_, _ = fmt.Fprintf(w, color.Red+"[ttyc %s] ", Strftime.FormatString(time.Now()))
 	_, _ = fmt.Fprintf(w, format, a...)
-	_, _ = fmt.Fprint(w, "\u001b[0m")
+	_, _ = fmt.Fprint(w, color.Reset)
 }
 
 func TtycFprintf(w io.Writer, format string, a ...interface{}) {
 	// Ignore fprintf errors here since I wasn't planning to care anywhere else regardless
-	_, _ = fmt.Fprintf(w, "\u001B[33;1m[ttyc %s] ", Strftime.FormatString(time.Now()))
+	_, _ = fmt.Fprintf(w, PlatformYellow()+"[ttyc %s] ", Strftime.FormatString(time.Now()))
 	_, _ = fmt.Fprintf(w, format, a...)
-	_, _ = fmt.Fprint(w, "\u001b[0m")
+	_, _ = fmt.Fprint(w, color.Reset)
 }
 
 func TtycErrPrintf(format string, args ...interface{}) {

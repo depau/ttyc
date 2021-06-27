@@ -16,7 +16,7 @@ type winSwitzerland struct {
 }
 
 var switzerlandInstance Switzerland = &winSwitzerland{
-	make([]chan<- WinchSignal, 10),
+	[]chan<- WinchSignal{},
 	false,
 	sync.Mutex{},
 }
