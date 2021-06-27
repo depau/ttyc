@@ -8,7 +8,7 @@ import (
 	"runtime"
 )
 
-const JOBS = -1 // -1 => use number of usable CPUs
+const JOBS = 1 // -1 => use number of usable CPUs
 
 type PlatformInfo struct {
 	OS       string
@@ -29,8 +29,8 @@ var Platforms = []PlatformInfo{
 	{"linux", "ppc64le", []string{}},
 	{"linux", "riscv64", []string{}},
 	{"linux", "s390x", []string{}},
-	{"android", "386", []string{}},
-	{"android", "amd64", []string{}},
+	//{"android", "386", []string{}},
+	//{"android", "amd64", []string{}},
 	//{"android", "arm", []string{}}, // CGO does not work
 	{"android", "arm64", []string{}},
 	{"darwin", "amd64", []string{}},
