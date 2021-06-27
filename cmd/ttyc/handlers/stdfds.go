@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Depau/ttyc"
+	"github.com/Depau/ttyc/cmd/ttyc/handlers/shenanigans"
 	"github.com/Depau/ttyc/utils"
 	"github.com/Depau/ttyc/utils/switzerland"
 	"github.com/Depau/ttyc/ws"
@@ -420,6 +421,11 @@ func (s *stdfdsHandler) HandleDisconnect() error {
 		}
 		s.console = nil
 		print("\r")
+
+		if err := shenanigans.WindowsClearConsole(); err != nil {
+			ttyc.Trace()
+			return err
+		}
 	}
 	return nil
 }

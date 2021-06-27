@@ -8,8 +8,7 @@ require (
 	github.com/lestrrat-go/strftime v1.0.4
 	github.com/mattn/go-isatty v0.0.12
 	github.com/mkideal/cli v0.2.5
-	github.com/tHinqa/outside v0.0.0-20131227223926-48a9c99b2195 // indirect
-	github.com/tHinqa/outside-windows v0.0.0-20131225231147-79e174abeec9
+	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
 	nhooyr.io/websocket v1.8.6
 )
 
