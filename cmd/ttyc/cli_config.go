@@ -22,3 +22,7 @@ type Config struct {
 func (config *Config) GetTty() string {
 	return (*config).Tty
 }
+
+func (config *Config) GetWaitDebugger() bool {
+	return false
+}

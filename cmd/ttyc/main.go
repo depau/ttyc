@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/Depau/ttyc"
 	"github.com/Depau/ttyc/cmd/ttyc/handlers"
@@ -19,6 +20,12 @@ func (argv *Config) AutoHelp() bool {
 }
 
 func (argv *Config) Validate(ctx *cli.Context) error {
+	// Windows bullshit
+	if argv.GetWaitDebugger() {
+		fmt.Print("Attach the debugger now, then press Enter to continue...")
+		bufio.NewReader(os.Stdin).ReadBytes('\n')
+	}
+
 	if !(argv.User != "" && argv.Pass != "") && !(argv.User == "" && argv.Pass == "") {
 		return fmt.Errorf("user and password must be both provided or not provided at all")
 	}
