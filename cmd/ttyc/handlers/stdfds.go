@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"sort"
 	"time"
 )
@@ -386,7 +387,12 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 				errChan <- err
 				return
 			} else {
-				s.client.ResizeTerminal(int(winSize.Width), int(winSize.Height))
+				height := int(winSize.Height)
+				// Windows seems to include the row below the bottom scrollbar
+				if runtime.GOOS == "windows" {
+					height -= 1
+				}
+				s.client.ResizeTerminal(int(winSize.Width), height)
 			}
 		case title := <-s.client.WinTitle:
 			s.rawTtyPrintfLn(false, "Title: %s", title)
