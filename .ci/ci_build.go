@@ -62,7 +62,7 @@ func BuildExe(exe string, plats []PlatformInfo, absoluteOutdir string) {
 		if plat.OS == "windows" {
 			outname += ".exe"
 		}
-		command := exec.Command("go", "build", "-o", outname, "-trimpath")
+		command := exec.Command("go", "build", "-ldflags=-s -w", "-o", outname, "-trimpath")
 		if runtime.GOOS == "linux" && runtime.GOOS == plat.OS && runtime.GOARCH == plat.Arch {
 			command.Args = append(command.Args, "-ldflags", "-linkmode external -extldflags \"-fno-PIC -static\"")
 		}
