@@ -8,7 +8,7 @@ import (
 	"runtime"
 )
 
-const JOBS = 1 // -1 => use number of usable CPUs
+const JOBS = -1 // -1 => use number of usable CPUs
 
 type PlatformInfo struct {
 	OS       string
