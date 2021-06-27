@@ -5,10 +5,14 @@ anything else that uses a compatible protocol.
 
 Features:
 
+- Works on all major operating systems including Windows
 - Built-in terminal with a user interface similar to that of [tio](https://github.com/tio/tio)
+- Supports configuring remote UART parameters for Wi-Se
+
+Additionally, on all platforms except Windows and macOS:
+
 - Can expose the remote terminal as a pseudo-terminal, which you can connect to with any TTY program (screen, minicom,
   etc.)
-- Supports configuring remote UART parameters for Wi-Se
 
 ## wistty
 
@@ -17,6 +21,10 @@ Wistty is a utility to set remote terminal parameters for [Wi-Se](https://github
 Wistty is not compatible with ttyd.
 
 ## Installation
+
+### Releases
+
+Head over to the [Releases](https://github.com/Depau/ttyc/releases) page and grab a prebuilt binary.
 
 ### Arch Linux
 
@@ -47,10 +55,20 @@ cd ../wistty
 go build
 ```
 
+### Build locally for all platforms
+
+```bash
+git clone https://github.com/Depau/ttyc.git
+cd ttyc
+go run .ci/ci_build.go
+```
+
+Outputs will be placed in the `build/` directory.
+
 ## Usage
 
 ```bash
-ttyc --host localhost --port 7681
+ttyc --url http://localhost:7681
 ```
 
 ```
@@ -86,6 +104,42 @@ Options:
   -s, --stopbits[=-1]   Set remote stop bits [1|2]
   -v, --version         Show version
 ```
+
+## Multiplatform notes
+
+### GNU/Linux
+
+All functionality is available. This software is mainly tested on GNU/Linux so it should work well.
+
+### Windows
+
+Occasionally tested.
+
+Raw terminal has been ported and workarounds have been implemented for missing system functionality.
+Everything should work perfectly except for TTY support, which is not supported by Windows itself (afaik).
+
+Text selection is disabled since it messes up the WebSocket communication. If you know workarounds, hit me up.
+
+### macOS
+
+Occasionally tested, everything except for TTY support should work well.,
+
+### Android (with Bionic libc)
+
+It only seems to build for aarch64. Not tested. Other builds may work with with additional configuration tweaks.
+TTY support is likely to require additional permissions.
+
+### OpenWRT (or other distros with uClibc)
+
+Tested on recent releases, it should work very well but huge 5MB binaries don't make it a very good fit on cheap routers.
+
+### Other Non-GNU/Linux (i.e musl libc)
+
+Not tested, will likely work but YMMV.
+
+### Other BSD
+
+Not tested, most things will likely work. TTY support may work or it may crash the program.
 
 ## License
 
