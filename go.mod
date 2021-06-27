@@ -3,6 +3,7 @@ module github.com/Depau/ttyc
 go 1.15
 
 require (
+	github.com/Depau/switzerland v0.0.0-20210627232915-baff755487c4
 	github.com/TwinProduction/go-color v1.0.0
 	github.com/containerd/console v1.0.2
 	github.com/lestrrat-go/strftime v1.0.4

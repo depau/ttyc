@@ -1,5 +1,7 @@
 github.com/Depau/console v1.0.2-0.20210627210027-beeaa4cc766b h1:x3WGdJm8V49ilx6TVZyEpAOXcS7Jv4Sgji/Vf7678yk=
 github.com/Depau/console v1.0.2-0.20210627210027-beeaa4cc766b/go.mod h1:7LqA/THxQ86k76b8c/EMSiaJ3h1eZkMkXar0TQ1gf3U=
+github.com/Depau/switzerland v0.0.0-20210627232915-baff755487c4 h1:JPjGZoEP6R422R13TJ4W+5z9iJgimHKbq9MoSJh/rLI=
+github.com/Depau/switzerland v0.0.0-20210627232915-baff755487c4/go.mod h1:ras8o9p1m6dTOnAs973YUrdob53MiZ8iBgRdSv8iegg=
 github.com/TwinProduction/go-color v1.0.0 h1:8n59tqmLmt8jyRsY44RPy2ixPDDw0FcVoAhlYeyz3Jw=
 github.com/TwinProduction/go-color v1.0.0/go.mod h1:5hWpSyT+mmKPjCwPNEruBW5Dkbs/2PwOuU468ntEXNQ=
 github.com/comail/colog v0.0.0-20160416085026-fba8e7b1f46c/go.mod h1:1WwgAwMKQLYG5I2FBhpVx94YTOAuB2W59IZ7REjSE6Y=
