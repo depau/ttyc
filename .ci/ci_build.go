@@ -8,6 +8,8 @@ import (
 	"runtime"
 )
 
+const JOBS = -1 // -1 => use number of usable CPUs
+
 type PlatformInfo struct {
 	OS       string
 	Arch     string
@@ -55,30 +57,46 @@ var WisttyAdditionalPlatforms = []PlatformInfo{
 	{"dragonfly", "amd64", []string{}},
 }
 
-func BuildExe(exe string, plats []PlatformInfo, absoluteOutdir string) {
+func BuildPlatformExe(exe string, plat PlatformInfo, absoluteOutdir string, semaphore <-chan interface{}) {
+	defer func() { <-semaphore }()
+
+	fmt.Printf("Building %s for %s/%s\n", exe, plat.OS, plat.Arch)
+	outname := absoluteOutdir + "/" + fmt.Sprintf("%s-%s-%s-%s", exe, ttyc.VERSION, plat.OS, plat.Arch)
+	if plat.OS == "windows" {
+		outname += ".exe"
+	}
+	command := exec.Command("go", "build", "-ldflags=-s -w", "-o", outname, "-trimpath")
+	if runtime.GOOS == "linux" && runtime.GOOS == plat.OS && runtime.GOARCH == plat.Arch {
+		command.Args = append(command.Args, "-ldflags", "-linkmode external -extldflags \"-fno-PIC -static\"")
+	}
+
+	command.Dir = "cmd/" + exe
+	command.Env = os.Environ()
+	command.Env = append(command.Env, "GOOS="+plat.OS, "GOARCH="+plat.Arch)
+	command.Env = append(command.Env, plat.ExtraEnv...)
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	command.Stdin = nil
+
+	err := command.Run()
+	if err != nil {
+		fmt.Println("Build failed:", err)
+	}
+}
+
+//goland:noinspection GoBoolExpressions // suppress check that jobs <= 0 is always true
+func BuildExes(exe string, plats []PlatformInfo, absoluteOutdir string) {
+	jobs := JOBS
+	if jobs <= 0 {
+		jobs = runtime.NumCPU()
+	}
+	fmt.Println("Running", jobs, "jobs in parallel")
+
+	semaphore := make(chan interface{}, jobs)
+
 	for _, plat := range plats {
-		fmt.Printf("Building %s for %s/%s\n", exe, plat.OS, plat.Arch)
-		outname := absoluteOutdir + "/" + fmt.Sprintf("%s-%s-%s-%s", exe, ttyc.VERSION, plat.OS, plat.Arch)
-		if plat.OS == "windows" {
-			outname += ".exe"
-		}
-		command := exec.Command("go", "build", "-ldflags=-s -w", "-o", outname, "-trimpath")
-		if runtime.GOOS == "linux" && runtime.GOOS == plat.OS && runtime.GOARCH == plat.Arch {
-			command.Args = append(command.Args, "-ldflags", "-linkmode external -extldflags \"-fno-PIC -static\"")
-		}
-
-		command.Dir = "cmd/" + exe
-		command.Env = os.Environ()
-		command.Env = append(command.Env, "GOOS="+plat.OS, "GOARCH="+plat.Arch)
-		command.Env = append(command.Env, plat.ExtraEnv...)
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-		command.Stdin = nil
-
-		err := command.Run()
-		if err != nil {
-			fmt.Println("Build failed:", err)
-		}
+		semaphore <- nil
+		go BuildPlatformExe(exe, plat, absoluteOutdir, semaphore)
 	}
 }
 
@@ -87,6 +105,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	BuildExe("ttyc", CommonPlatforms, path+"/build")
-	BuildExe("wistty", append(CommonPlatforms, WisttyAdditionalPlatforms...), path+"/build")
+	BuildExes("ttyc", CommonPlatforms, path+"/build")
+	BuildExes("wistty", append(CommonPlatforms, WisttyAdditionalPlatforms...), path+"/build")
 }
