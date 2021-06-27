@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"github.com/Depau/ttyc"
 	"github.com/Depau/ttyc/utils"
+	"github.com/Depau/ttyc/utils/switzerland"
 	"github.com/Depau/ttyc/ws"
 	"github.com/containerd/console"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
-	"os/signal"
 	"sort"
-	"syscall"
 	"time"
 )
 
@@ -370,9 +369,11 @@ func (s *stdfdsHandler) Run(errChan chan<- error) {
 	go s.handleStdin(s.client.CloseChan, cmdHandlingChan, s.client.Input, errChan)
 	go s.printOutput(errChan)
 
-	winch := make(chan os.Signal)
+	winch := make(chan switzerland.WinchSignal)
+	switz := switzerland.GetSwitzerland()
+	defer switz.Stop(winch)
 	defer close(winch)
-	signal.Notify(winch, syscall.SIGWINCH)
+	switz.Notify(winch)
 
 	for {
 		select {
