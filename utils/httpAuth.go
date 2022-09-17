@@ -31,6 +31,12 @@ type DigestHeaders struct {
 	Password  string
 }
 
+func basicAuth(auth *url.Userinfo) string {
+	password, _ := auth.Password()
+	header := auth.Username() + ":" + password
+	return base64.StdEncoding.EncodeToString([]byte(header))
+}
+
 func (d *DigestHeaders) digestChecksum() {
 	switch d.Algorithm {
 	case "MD5":
@@ -99,13 +105,12 @@ func EnsureAuth(resp *http.Response, auth *url.Userinfo, body io.Reader) (outRes
 	client := &http.Client{}
 	wwwAuth := resp.Header.Get("Www-Authenticate")
 	if strings.HasPrefix(strings.ToLower(wwwAuth), "basic") {
-		reqUrl := *resp.Request.URL
-		reqUrl.User = auth
 		req, err := http.NewRequest(resp.Request.Method, resp.Request.URL.String(), body)
 		if err != nil {
 			return nil, err
 		}
 		req.Header = resp.Request.Header.Clone()
+		req.Header.Add("Authorization", "Basic "+basicAuth(auth))
 		outResp, err = client.Do(req)
 
 		if outResp.StatusCode >= 400 {
