@@ -18,8 +18,8 @@ import (
 	"time"
 )
 
-const VERSION = "v0.3"
-const COPYRIGHT = "Copyright (c) 2021 Davide Depau\n\n" +
+const VERSION = "v0.4"
+const COPYRIGHT = "Copyright (c) 2022 Davide Depau\n\n" +
 	"License: GNU GPL version 3.0 or later <https://www.gnu.org/licenses/gpl-3.0.html>.\n" +
 	"This is free software; see the source for copying conditions.  There is NO\n" +
 	"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
