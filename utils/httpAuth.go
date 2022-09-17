@@ -107,6 +107,10 @@ func EnsureAuth(resp *http.Response, auth *url.Userinfo, body io.Reader) (outRes
 		}
 		req.Header = resp.Request.Header.Clone()
 		outResp, err = client.Do(req)
+
+		if outResp.StatusCode >= 400 {
+			err = fmt.Errorf("unauthorized (HTTP %d)", outResp.StatusCode)
+		}
 		return outResp, err
 	}
 
@@ -139,6 +143,10 @@ func EnsureAuth(resp *http.Response, auth *url.Userinfo, body io.Reader) (outRes
 	req.Header = resp.Request.Header.Clone()
 	d.ApplyAuth(req)
 	outResp, err = client.Do(req)
+
+	if outResp.StatusCode >= 400 {
+		err = fmt.Errorf("unauthorized (HTTP %d)", outResp.StatusCode)
+	}
 	return
 }
 
