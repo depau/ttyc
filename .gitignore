@@ -20,3 +20,4 @@ cmd/ttyc/ttyc
 cmd/wistty/wistty
 ttyc
 wistty
+build/

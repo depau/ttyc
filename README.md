@@ -85,6 +85,7 @@ ttyc --url http://localhost:7681
   -p, --parity              (Wi-Se only) Set remote parity [odd|even|none]
   -d, --databits[=-1]       (Wi-Se only) Set remote data bits [5|6|7|8]
   -s, --stopbits[=-1]       (Wi-Se only) Set remote stop bits [1|2]
+      --insecure            Allow insecure server connections when using SSL
   -v, --version             Show version
 ```
 
@@ -102,6 +103,7 @@ Options:
   -p, --parity          Set remote parity [odd|even|none]
   -d, --databits[=-1]   Set remote data bits [5|6|7|8]
   -s, --stopbits[=-1]   Set remote stop bits [1|2]
+      --insecure        Allow insecure server connections when using SSL
   -v, --version         Show version
 ```
 

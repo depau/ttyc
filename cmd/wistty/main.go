@@ -20,6 +20,7 @@ type Config struct {
 	Parity   string `cli:"p,parity" usage:"Set remote parity [odd|even|none]" dft:""`
 	Databits int    `cli:"d,databits" usage:"Set remote data bits [5|6|7|8]" dft:"-1"`
 	Stopbits int    `cli:"s,stopbits" usage:"Set remote stop bits [1|2]" dft:"-1"`
+	Insecure bool   `cli:"insecure" usage:"Allow insecure server connections when using SSL" dft:"false"`
 	Version  bool   `cli:"!v,version" usage:"Show version"`
 }
 
@@ -82,10 +83,10 @@ func stty(config *Config, sttyUrl *url.URL, credentials *url.Userinfo) (stty tty
 		paramsToUpdate++
 	}
 	if paramsToUpdate == 0 {
-		return ttyc.GetStty(sttyUrl, credentials)
+		return ttyc.GetStty(sttyUrl, credentials, config.Insecure)
 	}
 
-	stty, err = ttyc.Stty(sttyUrl, credentials, &dto)
+	stty, err = ttyc.Stty(sttyUrl, credentials, &dto, config.Insecure)
 	return
 }
 

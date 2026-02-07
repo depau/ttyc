@@ -88,7 +88,7 @@ type TtyClientOps interface {
 	SoftClose() error
 }
 
-func DialAndAuth(baseUrl *url.URL, token *string, watchdog int) (client *Client, err error) {
+func DialAndAuth(baseUrl *url.URL, token *string, watchdog int, insecure bool) (client *Client, err error) {
 	client = &Client{
 		BaseUrl:            baseUrl,
 		winTitle:           make(chan []byte),
@@ -96,7 +96,7 @@ func DialAndAuth(baseUrl *url.URL, token *string, watchdog int) (client *Client,
 		input:              make(chan []byte),
 		detectedBaudrate:   make(chan [2]int64),
 		flowControlEngaged: false,
-		wsHttpClient:       http.Client{},
+		wsHttpClient:       *ttyc.GetHttpClient(insecure),
 		error:              make(chan error),
 		toWs:               make(chan []byte),
 		fromWs:             make(chan []byte),

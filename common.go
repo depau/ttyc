@@ -2,6 +2,7 @@ package ttyc
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/Depau/ttyc/utils"
@@ -25,6 +26,20 @@ const COPYRIGHT = "Copyright (c) 2022 Davide Depau\n\n" +
 	"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
 
 var Strftime, _ = strftimeMod.New("%H:%M:%S")
+
+// GetHttpClient returns an HTTP client with optional TLS verification disabled.
+// When insecure is true, TLS certificate validation is skipped, making connections
+// vulnerable to man-in-the-middle attacks. This should only be used when connecting
+// to servers with self-signed or expired certificates in controlled environments.
+func GetHttpClient(insecure bool) *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if insecure {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	return &http.Client{
+		Transport: transport,
+	}
+}
 
 type TokenDTO struct {
 	Token string `json:"token"`
@@ -85,11 +100,12 @@ func GetUrlFor(urlFor int, baseURL *url.URL) (outUrl *url.URL) {
 	return
 }
 
-func Handshake(url *url.URL, credentials *url.Userinfo) (token string, impl Implementation, server string, err error) {
+func Handshake(url *url.URL, credentials *url.Userinfo, insecure bool) (token string, impl Implementation, server string, err error) {
 	var resp *http.Response
 	var body []byte
 
-	if resp, err = http.Get(url.String()); err != nil {
+	httpClient := GetHttpClient(insecure)
+	if resp, err = httpClient.Get(url.String()); err != nil {
 		Trace()
 		return
 	}
@@ -149,10 +165,9 @@ func parseStty(body []byte) (stty SttyDTO, err error) {
 	return
 }
 
-func GetStty(url *url.URL, credentials *url.Userinfo) (stty SttyDTO, err error) {
-	httpClient := http.Client{
-		Timeout: 3 * time.Second,
-	}
+func GetStty(url *url.URL, credentials *url.Userinfo, insecure bool) (stty SttyDTO, err error) {
+	httpClient := GetHttpClient(insecure)
+	httpClient.Timeout = 3 * time.Second
 	resp, err := httpClient.Get(url.String())
 	if err != nil {
 		Trace()
@@ -173,7 +188,7 @@ func GetStty(url *url.URL, credentials *url.Userinfo) (stty SttyDTO, err error) 
 	return
 }
 
-func Stty(url *url.URL, credentials *url.Userinfo, dto *SttyDTO) (stty SttyDTO, err error) {
+func Stty(url *url.URL, credentials *url.Userinfo, dto *SttyDTO, insecure bool) (stty SttyDTO, err error) {
 	// Generate json manually since golang can't generate it properly
 	var jsonItems []string
 	if dto.Baudrate != nil {
@@ -199,7 +214,8 @@ func Stty(url *url.URL, credentials *url.Userinfo, dto *SttyDTO) (stty SttyDTO, 
 	sb.WriteString(strings.Join(jsonItems, ","))
 	sb.WriteString("}")
 
-	resp, err := http.Post(url.String(), "application/json", bytes.NewBuffer([]byte(sb.String())))
+	httpClient := GetHttpClient(insecure)
+	resp, err := httpClient.Post(url.String(), "application/json", bytes.NewBuffer([]byte(sb.String())))
 	if err != nil {
 		Trace()
 		return

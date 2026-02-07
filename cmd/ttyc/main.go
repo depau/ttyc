@@ -88,7 +88,7 @@ func stty(config *Config, sttyUrl *url.URL, credentials *url.Userinfo) error {
 		return nil
 	}
 
-	_, err := ttyc.Stty(sttyUrl, credentials, &dto)
+	_, err := ttyc.Stty(sttyUrl, credentials, &dto, config.Insecure)
 	if err != nil {
 		ttyc.Trace()
 		return err
@@ -100,7 +100,7 @@ func doHandshakeAndSetTerminal(baseUrl *url.URL, credentials *url.Userinfo, conf
 	tokenUrl := ttyc.GetUrlFor(ttyc.UrlForToken, baseUrl)
 	sttyHttpUrl := ttyc.GetUrlFor(ttyc.UrlForStty, baseUrl)
 
-	token, implementation, server, err = ttyc.Handshake(tokenUrl, credentials)
+	token, implementation, server, err = ttyc.Handshake(tokenUrl, credentials, config.Insecure)
 	if err != nil {
 		err = fmt.Errorf("handshake failed (unable to connect or wrong user/pass): %v\n", err)
 		return
@@ -163,7 +163,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	client, err := ws.DialAndAuth(baseUrl, &token, config.Watchdog)
+	client, err := ws.DialAndAuth(baseUrl, &token, config.Watchdog, config.Insecure)
 	if err != nil {
 		ttyc.TtycAngryPrintf("unable to connect or authenticate to server: %v\n", err)
 		os.Exit(1)
@@ -176,7 +176,7 @@ func main() {
 
 	var handler handlers.TtyHandler
 	if config.GetTty() == "" {
-		handler, err = handlers.NewStdFdsHandler(client, implementation, credentials, server)
+		handler, err = handlers.NewStdFdsHandler(client, implementation, credentials, server, config.Insecure)
 		if err != nil {
 			ttyc.TtycAngryPrintf("Unable to launch console handler: %v\n", err)
 			os.Exit(1)

@@ -12,7 +12,6 @@ import (
 	"github.com/TwinProduction/go-color"
 	"github.com/containerd/console"
 	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
 	"runtime"
@@ -74,6 +73,7 @@ type stdfdsHandler struct {
 	implementation   ttyc.Implementation
 	credentials      *url.Userinfo
 	server           string
+	insecure         bool
 	expectingCommand bool
 	localEchoMode    bool
 	hexMode          bool
@@ -81,12 +81,13 @@ type stdfdsHandler struct {
 	nextIsTimestamp  bool
 }
 
-func NewStdFdsHandler(client *ws.Client, implementation ttyc.Implementation, credentials *url.Userinfo, server string) (tty TtyHandler, err error) {
+func NewStdFdsHandler(client *ws.Client, implementation ttyc.Implementation, credentials *url.Userinfo, server string, insecure bool) (tty TtyHandler, err error) {
 	tty = &stdfdsHandler{
 		client:           client,
 		implementation:   implementation,
 		credentials:      credentials,
 		server:           server,
+		insecure:         insecure,
 		console:          nil,
 		expectingCommand: false,
 		localEchoMode:    false,
@@ -176,7 +177,8 @@ func (s *stdfdsHandler) handleStdin(closeChan <-chan interface{}, inChan <-chan 
 
 func (s *stdfdsHandler) printStats() {
 	statsUrl := ttyc.GetUrlFor(ttyc.UrlForStats, s.client.BaseUrl)
-	res, err := http.Get(statsUrl.String())
+	httpClient := ttyc.GetHttpClient(s.insecure)
+	res, err := httpClient.Get(statsUrl.String())
 	if err != nil {
 		ttyc.Trace()
 		s.rawTtyPrintfLn(true, "Failed to get stats: %v", err)
@@ -223,7 +225,7 @@ func (s *stdfdsHandler) handleCommand(command byte, errChan chan<- error) []byte
 
 		if s.implementation == ttyc.ImplementationWiSe {
 			sttyUrl := ttyc.GetUrlFor(ttyc.UrlForStty, s.client.BaseUrl)
-			ttyConf, err := ttyc.GetStty(sttyUrl, s.credentials)
+			ttyConf, err := ttyc.GetStty(sttyUrl, s.credentials, s.insecure)
 			if err == nil {
 				s.rawTtyPrintfLn(false, " Baudrate: %d", *ttyConf.Baudrate)
 				s.rawTtyPrintfLn(false, " Databits: %d", *ttyConf.Databits)
